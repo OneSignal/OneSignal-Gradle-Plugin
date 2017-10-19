@@ -18,6 +18,8 @@ version = '0.5.0'
 description 'OneSignal Gradle Plugin'
 
 pluginBundle {
+    website = 'http://onesignal.com/'
+    vcsUrl = 'https://github.com/OneSignal/OneSignal-Gradle-Plugin'
     plugins {
         plugin {
             id = 'com.onesignal.androidsdk.onesignal-gradle-plugin'
