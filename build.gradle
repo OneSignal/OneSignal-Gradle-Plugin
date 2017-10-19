@@ -1,0 +1,51 @@
+plugins {
+    id 'com.gradle.plugin-publish' version '0.9.8'
+}
+
+repositories {
+    mavenCentral()
+}
+
+apply plugin: 'groovy'
+
+dependencies {
+    compile gradleApi()
+    compile localGroovy()
+}
+
+group = 'com.onesignal'
+version = '0.5.0'
+description 'OneSignal Gradle Plugin'
+
+pluginBundle {
+    plugins {
+        plugin {
+            id = 'com.onesignal.androidsdk.onesignal-gradle-plugin'
+            displayName = 'OneSignal Gradle Plugin'
+            description = project.description
+            tags = ['OneSignal', 'Android', 'push', 'notifications', 'GCM', 'FCM']
+        }
+    }
+}
+
+
+// Build for Local Testing
+apply plugin: 'maven'
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: uri('../repo'))
+        }
+    }
+}
+
+// 1. Run from root to create local package
+//      ./gradlew uploadArchives
+// 2. In build.gradle on your test project add the following to buildscript -> repositories {..}
+//      maven { url uri('../repo') }
+// 3. Update '../repo' to your correct relative path
+// 4. To the same build.gradle under buildscript -> dependencies
+//      classpath 'com.onesignal:onesignal-gradle-plugin:0.5.0'
+// 5. To your app/build.gradle add
+//      apply plugin: com.onesignal.androidsdk.GradleProjectPlugin
