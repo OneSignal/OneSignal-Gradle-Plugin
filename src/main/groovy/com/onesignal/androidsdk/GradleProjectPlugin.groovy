@@ -31,7 +31,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         'com.android.support': [
             'requiredCompileSdkVersion': 26,
             'version': '26.1.+',
-            'omitModules': ['multidex'],
+            'omitModules': ['multidex', 'multidex-instrumentation'],
 
             // Can't use 26 of com.android.support when compileSdkVersion 25 is set
             // The following error will be thrown if there is a mismatch here.
