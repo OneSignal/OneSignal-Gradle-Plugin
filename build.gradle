@@ -1,5 +1,6 @@
 plugins {
     id 'com.gradle.plugin-publish' version '0.9.8'
+    id 'java-gradle-plugin'
 }
 
 repositories {
@@ -7,11 +8,19 @@ repositories {
 }
 
 apply plugin: 'groovy'
+apply plugin: 'java-gradle-plugin'
 
 dependencies {
     compile gradleApi()
     compile localGroovy()
+
+    testCompile gradleTestKit()
+    testCompile 'junit:junit:4.12'
+    testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
+        exclude module: 'groovy-all'
+    }
 }
+
 
 group = 'com.onesignal'
 version = '0.5.0'
@@ -26,6 +35,17 @@ pluginBundle {
             displayName = 'OneSignal Gradle Plugin'
             description = project.description
             tags = ['OneSignal', 'Android', 'push', 'notifications', 'GCM', 'FCM']
+        }
+    }
+}
+
+gradlePlugin {
+    pluginSourceSet project.sourceSets.main
+    testSourceSets project.sourceSets.test
+    plugins {
+        plugin {
+            id = 'com.onesignal.androidsdk.onesignal-gradle-plugin'
+            implementationClass = 'com.onesignal.androidsdk.GradleProjectPlugin'
         }
     }
 }
