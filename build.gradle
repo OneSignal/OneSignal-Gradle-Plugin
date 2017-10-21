@@ -50,6 +50,12 @@ gradlePlugin {
     }
 }
 
+test {
+    testLogging {
+        exceptionFormat = 'full'
+    }
+}
+
 
 // Build for Local Testing
 apply plugin: 'maven'

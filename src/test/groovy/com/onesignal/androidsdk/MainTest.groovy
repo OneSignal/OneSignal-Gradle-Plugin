@@ -73,17 +73,37 @@ class MainTest extends Specification {
     }
 
     def runGradleProject() {
-        return GradleRunner.create()
+        def result = GradleRunner.create()
             .withProjectDir(testProjectDir.root)
             .withArguments('dependencies', '--configuration', 'compile')
             .withPluginClasspath()
             .build()
+        println result.output
+        return result
+    }
+
+    def "OneSignal version 3.6.4"() {
+        def compileLines = """\
+        compile 'com.onesignal:OneSignal:3.6.4'
+        """
+
+        createBuildFile(26, compileLines)
+
+        when:
+        def result = runGradleProject()
+
+        then:
+        result.output.contains('+--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
+        result.output.contains('+--- com.google.android.gms:play-services-location:[10.2.1,11.3.0) -> 11.2.2')
+        result.output.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.1.0 (*)')
+        result.output.contains('\\--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
     }
 
     def "Aligns support library"() {
         def compileLines = """\
         compile 'com.android.support:appcompat-v7:25.0.0'
         compile 'com.android.support:support-v4:26.0.0'
+        compile 'com.onesignal:OneSignal:3.6.4'
         """
 
         createBuildFile(26, compileLines)
@@ -122,9 +142,55 @@ class MainTest extends Specification {
         def result = runGradleProject()
 
         then:
-        result.output.contains('+--- com.google.firebase:firebase-core:11.0.0 -> 11.4.2')
-        result.output.contains('+--- com.google.android.gms:play-services-gcm:11.2.0 -> 11.4.2')
-        result.output.contains('+--- com.google.android.gms:play-services-gcm:11.2.0 -> 11.4.2')
+        result.output.contains('+--- com.google.firebase:firebase-core:11.0.0 -> 11.4.0')
+        result.output.contains('+--- com.google.android.gms:play-services-gcm:11.2.0 -> 11.4.0')
+        result.output.contains('\\--- com.google.android.gms:play-services-location:11.4.0')
     }
 
+    def "Aligns when using LATEST"() {
+        def compileLines = """\
+        compile 'com.android.support:appcompat-v7:25.0.0'
+        compile 'com.android.support:support-v4:+'
+        """
+
+        createBuildFile(26, compileLines)
+
+        when:
+        def result = runGradleProject()
+
+        then:
+        result.output.contains('OneSignalProjectPlugin: com.android.support:support-v4 overridden from \'+\' to \'26.+\'')
+    }
+
+    def "Aligns when using +'s"() {
+        def compileLines = """\
+        compile 'com.android.support:appcompat-v7:25.0.+'
+        compile 'com.android.support:support-v4:25.+'
+        """
+
+        createBuildFile(26, compileLines)
+
+        when:
+        def result = runGradleProject()
+
+        then:
+        result.output.contains('+--- com.android.support:appcompat-v7:25.0.+ -> 25.4.0')
+        result.output.contains('\\--- com.android.support:support-v4:25.+ -> 25.4.0 (*)')
+    }
+
+    def "Test exclusive upper bound ending on major version"() {
+        def compileLines = """\
+        compile 'com.android.support:appcompat-v7:[25.0.0, 26.0.0)'
+        compile 'com.android.support:support-v4:25.+'
+        """
+
+        createBuildFile(26, compileLines)
+
+        when:
+        def result = runGradleProject()
+
+        then:
+        result.output.contains('+--- com.android.support:appcompat-v7:[25.0.0, 26.0.0) -> 26.0.0-beta2')
+        result.output.contains('\\--- com.android.support:support-v4:25.+ -> 26.0.0-beta2 (*)')
+    }
 }
