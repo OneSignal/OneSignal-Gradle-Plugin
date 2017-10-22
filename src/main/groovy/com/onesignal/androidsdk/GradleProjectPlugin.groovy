@@ -158,7 +158,9 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static void generateHighestVersionsForGroups(def configuration) {
         def configCopy = configuration.copy()
-        configCopy.canBeResolved = true
+        // Gradle 2.14.1 check
+        if (configCopy.hasProperty('canBeResolved'))
+            configCopy.canBeResolved = true
 
         configCopy.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
             if (!isInGroupAlignList(details))

@@ -6,20 +6,21 @@ import org.gradle.testkit.runner.GradleRunner
 
 class MainTest extends Specification {
 
-    @Rule final TemporaryFolder testProjectDir = new TemporaryFolder()
+    TemporaryFolder testProjectDir
+    String buildFileStr
     File buildFile
-    List<File> pluginClasspath
+
+    def gradleVersions = [
+        '2.14.1': 'com.android.tools.build:gradle:2.2.3',
+        '4.3-rc-2': 'com.android.tools.build:gradle:3.0.0-beta6'
+    ]
 
     def setup() {
-        buildFile = testProjectDir.newFile('build.gradle')
     }
 
-    def createBuildFile(compileVersion, compileLines) {
-        def gradleProps = testProjectDir.newFile('gradle.properties')
-        gradleProps <<'''\
-            android.enableAapt2=false
-        '''.stripIndent()
-
+    def createBuildFile(int compileVersion, String compileLines) {
+        testProjectDir = new TemporaryFolder()
+        testProjectDir.create()
         testProjectDir.newFolder("src", "main")
         def androidManifest = testProjectDir.newFile('src/main/AndroidManifest.xml')
         androidManifest << '''\
@@ -29,14 +30,14 @@ class MainTest extends Specification {
             </manifest>
         '''.stripIndent()
 
-        buildFile << """\
+        buildFileStr = """\
             buildscript {
                 repositories {
                       jcenter()
                       maven { url 'https://maven.google.com' }
                 }
                 dependencies {
-                   classpath 'com.android.tools.build:gradle:3.0.0-beta6'
+                    classpath 'com.android.tools.build:gradle:XX.XX.XX'
                 }
             }
             
@@ -72,14 +73,32 @@ class MainTest extends Specification {
         """\
     }
 
-    def runGradleProject() {
-        def result = GradleRunner.create()
-            .withProjectDir(testProjectDir.root)
-            .withArguments('dependencies', '--configuration', 'compile')
-            .withPluginClasspath()
-            .build()
-        println result.output
-        return result
+    def runGradleProject(int compileVersion, String compileLines) {
+        def results = [:]
+
+        gradleVersions.each { gradleVersion ->
+            if (testProjectDir != null)
+                testProjectDir.delete()
+
+            createBuildFile(compileVersion, compileLines)
+
+            buildFileStr = buildFileStr.replace('com.android.tools.build:gradle:XX.XX.XX', gradleVersion.value)
+            buildFile = testProjectDir.newFile('build.gradle')
+            buildFile << buildFileStr
+
+            def result =
+                GradleRunner.create()
+                    .withProjectDir(testProjectDir.root)
+                    .withArguments('dependencies', '--configuration', 'compile')
+                    .withPluginClasspath()
+                    .withGradleVersion(gradleVersion.key)
+                    .build()
+            results[gradleVersion.key] = result.output
+
+            println result.output
+        }
+
+        return results
     }
 
     def "OneSignal version 3.6.4"() {
@@ -87,16 +106,16 @@ class MainTest extends Specification {
         compile 'com.onesignal:OneSignal:3.6.4'
         """
 
-        createBuildFile(26, compileLines)
-
         when:
-        def result = runGradleProject()
+        def results = runGradleProject(26, compileLines)
 
         then:
-        result.output.contains('+--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
-        result.output.contains('+--- com.google.android.gms:play-services-location:[10.2.1,11.3.0) -> 11.2.2')
-        result.output.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.1.0 (*)')
-        result.output.contains('\\--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
+        results.each {
+            it.value.contains('+--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
+            it.value.contains('+--- com.google.android.gms:play-services-location:[10.2.1,11.3.0) -> 11.2.2')
+            it.value.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.1.0 (*)')
+            it.value.contains('\\--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
+        }
     }
 
     def "Aligns support library"() {
@@ -106,13 +125,13 @@ class MainTest extends Specification {
         compile 'com.onesignal:OneSignal:3.6.4'
         """
 
-        createBuildFile(26, compileLines)
-
         when:
-        def result = runGradleProject()
+        def results = runGradleProject(26, compileLines)
 
         then:
-        result.output.contains('+--- com.android.support:appcompat-v7:25.0.0 -> 26.1.0')
+        results.each {
+            it.value.contains('+--- com.android.support:appcompat-v7:25.0.0 -> 26.1.0')
+        }
     }
 
     def "Uses support library 25 when compileSdkVersion is 25"() {
@@ -120,13 +139,13 @@ class MainTest extends Specification {
         compile 'com.android.support:support-v4:26.0.0'
         """
 
-        createBuildFile(25, compileLines)
-
         when:
-        def result = runGradleProject()
+        def results = runGradleProject(25, compileLines)
 
         then:
-        result.output.contains('\\--- com.android.support:support-v4:26.0.0 -> 25.4.0')
+        results.each {
+            it.value.contains('\\--- com.android.support:support-v4:26.0.0 -> 25.4.0')
+        }
     }
 
     def "Aligns gms and firebase"() {
@@ -136,15 +155,15 @@ class MainTest extends Specification {
         compile 'com.google.android.gms:play-services-location:11.4.0'
         """
 
-        createBuildFile(26, compileLines)
-
         when:
-        def result = runGradleProject()
+        def results = runGradleProject(26, compileLines)
 
         then:
-        result.output.contains('+--- com.google.firebase:firebase-core:11.0.0 -> 11.4.0')
-        result.output.contains('+--- com.google.android.gms:play-services-gcm:11.2.0 -> 11.4.0')
-        result.output.contains('\\--- com.google.android.gms:play-services-location:11.4.0')
+        results.each {
+            it.value.contains('+--- com.google.firebase:firebase-core:11.0.0 -> 11.4.0')
+            it.value.contains('+--- com.google.android.gms:play-services-gcm:11.2.0 -> 11.4.0')
+            it.value.contains('\\--- com.google.android.gms:play-services-location:11.4.0')
+        }
     }
 
     def "Aligns when using LATEST"() {
@@ -153,13 +172,13 @@ class MainTest extends Specification {
         compile 'com.android.support:support-v4:+'
         """
 
-        createBuildFile(26, compileLines)
-
         when:
-        def result = runGradleProject()
+        def results = runGradleProject(26, compileLines)
 
         then:
-        result.output.contains('OneSignalProjectPlugin: com.android.support:support-v4 overridden from \'+\' to \'26.+\'')
+        results.each {
+            it.value.contains('OneSignalProjectPlugin: com.android.support:support-v4 overridden from \'+\' to \'26.+\'')
+        }
     }
 
     def "Aligns when using +'s"() {
@@ -168,14 +187,14 @@ class MainTest extends Specification {
         compile 'com.android.support:support-v4:25.+'
         """
 
-        createBuildFile(26, compileLines)
-
         when:
-        def result = runGradleProject()
+        def results = runGradleProject(26, compileLines)
 
         then:
-        result.output.contains('+--- com.android.support:appcompat-v7:25.0.+ -> 25.4.0')
-        result.output.contains('\\--- com.android.support:support-v4:25.+ -> 25.4.0 (*)')
+        results.each {
+            it.value.contains('+--- com.android.support:appcompat-v7:25.0.+ -> 25.4.0')
+            it.value.contains('\\--- com.android.support:support-v4:25.+ -> 25.4.0 (*)')
+        }
     }
 
     def "Test exclusive upper bound ending on major version"() {
@@ -184,13 +203,13 @@ class MainTest extends Specification {
         compile 'com.android.support:support-v4:25.+'
         """
 
-        createBuildFile(26, compileLines)
-
         when:
-        def result = runGradleProject()
+        def results = runGradleProject(26, compileLines)
 
         then:
-        result.output.contains('+--- com.android.support:appcompat-v7:[25.0.0, 26.0.0) -> 26.0.0-beta2')
-        result.output.contains('\\--- com.android.support:support-v4:25.+ -> 26.0.0-beta2 (*)')
+        results.each {
+            it.value.contains('+--- com.android.support:appcompat-v7:[25.0.0, 26.0.0) -> 26.0.0-beta2')
+            it.value.contains('\\--- com.android.support:support-v4:25.+ -> 26.0.0-beta2 (*)')
+        }
     }
 }
