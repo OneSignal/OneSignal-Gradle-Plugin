@@ -50,6 +50,13 @@ gradlePlugin {
     }
 }
 
+test {
+    testLogging {
+        showStandardStreams = true
+        exceptionFormat = 'full'
+    }
+}
+
 
 // Build for Local Testing
 apply plugin: 'maven'
