@@ -7,7 +7,7 @@ This Gradle plugin helps make the [OneSignal Android SDK](https://github.com/One
 Add the following to the top of your `app/build.gradle`
 ```Gradle
 plugins {
-    id 'com.onesignal.androidsdk.onesignal-gradle-plugin' version '0.5.0'
+    id 'com.onesignal.androidsdk.onesignal-gradle-plugin' version '0.6.0'
 }
 apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'
 ```
