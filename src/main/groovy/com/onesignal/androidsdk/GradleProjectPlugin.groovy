@@ -19,6 +19,10 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionR
 //     - Mixing versions of these modules leads to compile or runtime errors.
 //   - compileSdkVersion is checked to make sure a compatible com.android.support version is used
 
+// References
+// - Source of Android Gradle Plugin (com.android.application)
+//   https://android.googlesource.com/platform/tools/build/+/oreo-release/gradle/src/main/groovy/com/android/build/gradle/BasePlugin.groovy
+
 class InternalUtils {
     // standard deep copy implementation
     static Object deepcopy(orig) {
@@ -70,19 +74,30 @@ class GradleProjectPlugin implements Plugin<Project> {
 
             project.afterEvaluate {
                 generateHighestVersionsForGroups(configuration)
-
-                configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-                    if (!isInGroupAlignList(details))
-                        return
-
-                    def toVersion = versionGroupAligns[details.requested.group]['version']
-                    overrideVersion(project, details, toVersion)
-                }
+                doResolutionStrategy(configuration)
             }
 
-            configuration.incoming.beforeResolve {
-                finalAlignmentRules()
+            // Android Specific task
+            // This allows aligning of <buildType>CompileClasspath tasks
+            project.dependencies {
+                generateHighestVersionsForGroups(configuration)
+
+                // ConfigurationInternal.InternalState.ARTIFACTS_RESOLVED
+                if (configuration.getResolvedState() == 2)
+                    return
+
+                doResolutionStrategy(configuration)
             }
+        }
+    }
+
+    static void doResolutionStrategy(Object configuration) {
+        configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            if (!isInGroupAlignList(details))
+                return
+
+            def toVersion = finalAlignmentRules()[details.requested.group]['version']
+            overrideVersion(project, details, toVersion)
         }
     }
 
@@ -97,6 +112,9 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void overrideVersion(Project project, DependencyResolveDetails details, String resolvedVersion) {
+        if (resolvedVersion == '0.0.0')
+            return
+
         details.useVersion(resolvedVersion)
 
         def modName = "${details.requested.group}:${details.requested.name}"
@@ -127,25 +145,29 @@ class GradleProjectPlugin implements Plugin<Project> {
         return versionComparator.compare(new VersionInfo(version1), new VersionInfo(version2))
     }
 
-    static void finalAlignmentRules() {
+    static Object finalAlignmentRules() {
         project.logger.debug("OneSignalProjectPlugin: FINAL PART 1: ${versionGroupAligns}")
-        alignAcrossGroups();
-        updateMockVersionsIntoGradleVersions();
-        project.logger.debug("OneSignalProjectPlugin: FINAL PART 2: ${versionGroupAligns}")
+
+        def finalVersionGroupAligns = InternalUtils.deepcopy(versionGroupAligns)
+        alignAcrossGroups(finalVersionGroupAligns);
+        updateMockVersionsIntoGradleVersions(finalVersionGroupAligns);
+
+        project.logger.debug("OneSignalProjectPlugin: FINAL PART 2: ${finalVersionGroupAligns}")
+        return finalVersionGroupAligns
     }
 
-    static void alignAcrossGroups() {
+    static void alignAcrossGroups(def finalVersionGroupAligns) {
         def highestVersion = getHighestVersion(
-            versionGroupAligns['com.google.android.gms']['version'],
-            versionGroupAligns['com.google.firebase']['version']
+            finalVersionGroupAligns['com.google.android.gms']['version'],
+            finalVersionGroupAligns['com.google.firebase']['version']
         )
 
-        versionGroupAligns['com.google.android.gms']['version'] = highestVersion
-        versionGroupAligns['com.google.firebase']['version'] = highestVersion
+        finalVersionGroupAligns['com.google.android.gms']['version'] = highestVersion
+        finalVersionGroupAligns['com.google.firebase']['version'] = highestVersion
     }
 
-    static void updateMockVersionsIntoGradleVersions() {
-        versionGroupAligns.each { group ->
+    static void updateMockVersionsIntoGradleVersions(def finalVersionGroupAligns) {
+        finalVersionGroupAligns.each { group ->
             compileSdkVersionAlign(project, group.value)
 
             // Mock latest into Gradle latest
@@ -153,10 +175,16 @@ class GradleProjectPlugin implements Plugin<Project> {
                 group.value['version'] = '+'
 
             group.value['version'] = group.value['version'].replace('9999', '+')
+            // TODO: This shouldn't be needed.
+            //   This is an indication of extra unneeded calls to generateHighestVersionsForGroups
+            group.value['version'] = group.value['version'].replace(".+.+", ".+")
         }
     }
 
     static void generateHighestVersionsForGroups(def configuration) {
+        if (configuration.name.endsWith('Copy'))
+            return
+
         def configCopy = configuration.copy()
         // Gradle 2.14.1 check
         if (configCopy.hasProperty('canBeResolved'))
@@ -167,7 +195,6 @@ class GradleProjectPlugin implements Plugin<Project> {
                 return
 
             def defaultVersionComparator = new DefaultVersionComparator()
-
             def defaultVersionSelectorScheme  = new DefaultVersionSelectorScheme(defaultVersionComparator)
             def parsedVersion = defaultVersionSelectorScheme.parseSelector(details.requested.version)
 
