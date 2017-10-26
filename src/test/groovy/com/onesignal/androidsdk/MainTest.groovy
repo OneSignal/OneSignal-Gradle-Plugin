@@ -14,7 +14,7 @@ class MainTest extends Specification {
 
     def gradleVersions = [
         '2.14.1': 'com.android.tools.build:gradle:2.2.3',
-        '4.3-rc-2': 'com.android.tools.build:gradle:3.0.0-beta6'
+        '4.3-rc-3': 'com.android.tools.build:gradle:3.0.0'
     ]
 
     def buildArgumentSets = [
@@ -22,7 +22,7 @@ class MainTest extends Specification {
             ['dependencies', '--configuration', 'compile'],
             ['dependencies', '--configuration', '_debugCompile']
         ],
-        '4.3-rc-2': [
+        '4.3-rc-3': [
             ['dependencies', '--configuration', 'compile'],
             ['dependencies', '--configuration', 'debugCompileClasspath']
         ]
@@ -71,7 +71,7 @@ class MainTest extends Specification {
 
             android {
                 compileSdkVersion ${compileVersion}
-                buildToolsVersion '26.0.1'
+                buildToolsVersion '26.0.2'
                  defaultConfig {
                     applicationId 'com.app.example'
 
