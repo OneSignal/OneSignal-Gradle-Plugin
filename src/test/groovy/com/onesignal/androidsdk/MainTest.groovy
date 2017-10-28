@@ -1,7 +1,6 @@
 package com.onesignal.androidsdk
 
 import spock.lang.Specification
-import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
 import org.gradle.testkit.runner.GradleRunner
@@ -197,13 +196,6 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            // TODO: Do we need to update this test? Let see if things changes before then...
-            // Seems to be a 2 step process now:
-//            configCopy.resolutionStrategy.eachDependency: details: org.gradle.api.internal.artifacts.ivyservice.dependencysubstitution.DefaultDependencyResolveDetails@418858af
-//            OneSignalProjectPlugin: com.android.support:support-v4 overridden from '+' to '25.0.0'
-//            generateHighestVersionsForGroups: compile
-//            configCopy.resolutionStrategy.eachDependency: details: org.gradle.api.internal.artifacts.ivyservice.dependencysubstitution.DefaultDependencyResolveDetails@2a44975d
-//            OneSignalProjectPlugin: com.android.support:support-v4 overridden from '25.0.0' to '26.+'
             assert it.value.contains('OneSignalProjectPlugin: com.android.support:support-v4 overridden from \'+\' to \'26.+\'')
         }
     }
