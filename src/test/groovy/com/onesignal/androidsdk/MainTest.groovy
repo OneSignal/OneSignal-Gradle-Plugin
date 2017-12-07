@@ -143,17 +143,14 @@ class MainTest extends Specification {
     }
 
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26"() {
-        // TODO: put back to 3.5.+ later
-        def compileLines = """\
-        compile 'com.onesignal:OneSignal:3.5.0'
-        """
+        def compileLines = "compile 'com.onesignal:OneSignal:3.5.+'"
 
         when:
         def results = runGradleProject([compileLines : compileLines])
 
         then:
         results.each {
-            assert it.value.contains('\\--- com.onesignal:OneSignal:3.5.0 -> 3.6.3')
+            assert it.value.contains('\\--- com.onesignal:OneSignal:3.5.+ -> 3.6.3')
             assert it.value.contains(' +--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
         }
     }

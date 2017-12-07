@@ -74,34 +74,35 @@ class GradleProjectPlugin implements Plugin<Project> {
         // This sections works with com.android.tools.build:gradle:3.0.0 on the debugCompileClasspath task.
         //   However not the compile task as it don't contain a variant.
         project.afterEvaluate {
-            project.android {
-                applicationVariants.all { variant ->
-                    if (!variant.hasProperty('compileConfiguration'))
-                        return
+            project.android.applicationVariants.all { variant ->
+//                if (!variant.hasProperty('compileConfiguration'))
+//                    return
 
-                    def configuration = variant.compileConfiguration
-                    println("variant.compileConfiguration: ${variant.class}")
-                    println variant.properties.toString()
+                def configuration = variant.compileConfiguration
+                println("variant.compileConfiguration: ${variant.class}")
+                println variant.properties.toString()
 
+                // This uses configuration.copy, however the resolves does not trigger on the copy of compileConfiguration
+                generateHighestVersionsForGroups(configuration)
 
-                    generateHighestVersionsForGroups(configuration)
-                    doResolutionStrategy(configuration)
-                }
+                doResolutionStrategy(configuration)
             }
         }
 
         // Adding this section triggers resolution to soon when using com.android.tools.build:gradle:3.0.0
         project.configurations.all { configuration ->
-            project.afterEvaluate {
-                generateHighestVersionsForGroups(configuration)
-                doResolutionStrategy(configuration)
-            }
+            // This Breaks "Upgrade to compatible OneSignal SDK..." but fixes a lot of other tests
+//            project.afterEvaluate {
+//                generateHighestVersionsForGroups(configuration)
+//                doResolutionStrategy(configuration)
+//            }
 
+            // Seem to have no effect on the 3.0.0 plugin
             // Catches Android specific tasks, <buildType>CompileClasspath
-            project.dependencies {
-                generateHighestVersionsForGroups(configuration)
-                doResolutionStrategy(configuration)
-            }
+//            project.dependencies {
+//                generateHighestVersionsForGroups(configuration)
+//                doResolutionStrategy(configuration)
+//            }
         }
     }
 
@@ -109,7 +110,12 @@ class GradleProjectPlugin implements Plugin<Project> {
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
             project.android.applicationVariants.all { variant ->
                 doMinimumVersionUpgradeOnDetail(configuration, details)
-                doGroupAlignStrategyOnDetail(details);
+
+                project.configurations.all { localConfiguration ->
+                    generateHighestVersionsForGroups(localConfiguration)
+                }
+
+                doGroupAlignStrategyOnDetail(details)
             }
         }
     }
@@ -154,11 +160,11 @@ class GradleProjectPlugin implements Plugin<Project> {
     static int getCurrentTargetSdkVersion() {
         def targetSdkVersion = 0
         project.android.applicationVariants.all { variant ->
-            println("project.android.applicationVariants.all:variant:${variant.name}")
+//            println("project.android.applicationVariants.all:variant:${variant.name}")
             def mergedFlavor = variant.getMergedFlavor()
-            println("mergedFlavor:${mergedFlavor}")
-            println("mergedFlavor.targetSdkVersion: ${mergedFlavor.targetSdkVersion}")
-            println("mergedFlavor.targetSdkVersion:apiLevel: ${mergedFlavor.targetSdkVersion.apiLevel}")
+//            println("mergedFlavor:${mergedFlavor}")
+//            println("mergedFlavor.targetSdkVersion: ${mergedFlavor.targetSdkVersion}")
+//            println("mergedFlavor.targetSdkVersion:apiLevel: ${mergedFlavor.targetSdkVersion.apiLevel}")
 
 //          if (variant.name.equals('debugCompileClasspath')) {
               targetSdkVersion = mergedFlavor.targetSdkVersion.apiLevel
@@ -217,7 +223,7 @@ class GradleProjectPlugin implements Plugin<Project> {
                     newVersion = value
             }
 
-            if (newVersion != curVersion) {
+            if (newVersion != curVersion && newVersion != null) {
                 moduleVersionOverrides["${details.requested.group}:${details.requested.name}"] = newVersion
                 println("${configuration}:@@@@@@@@@@@@@@@@@@@@@@@@@@@@@doMinimumVersionUpgradeOnDetail:newVersion: ${newVersion}")
                 details.useVersion(newVersion)
@@ -323,36 +329,46 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (configCopy.hasProperty('canBeResolved'))
             configCopy.canBeResolved = true
 
-        def rootDependencyChanged = false
-
         configCopy.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-//            project.android.applicationVariants.all { variant ->
-                def didUpdate = doMinimumVersionUpgradeOnDetail(configCopy, details)
-                if (didUpdate)
-                    rootDependencyChanged = true
+            println "############configCopy.resolutionStrategy.eachDependency"
+            doMinimumVersionUpgradeOnDetail(configCopy, details)
 
-                if (!inGroupAlignList(details))
-                    return
+            if (!inGroupAlignList(details))
+                return
 
+            def curOverrideVersion = versionGroupAligns[details.requested.group]['version']
+            def inComingVersion = getVersionFromDependencyResolveDetails(details)
 
-                def curOverrideVersion = versionGroupAligns[details.requested.group]['version']
-                def inComingVersion = getVersionFromDependencyResolveDetails(details)
-
-                def compareVersionResult = compareVersions(inComingVersion, curOverrideVersion)
-                if (compareVersionResult > 0) {
-                    println("${configCopy}:Updating versionGroupAligns[${details.requested.group}] to '${inComingVersion}'")
-                    versionGroupAligns[details.requested.group]['version'] = inComingVersion
-                }
-//            }
+            def compareVersionResult = compareVersions(inComingVersion, curOverrideVersion)
+            if (compareVersionResult > 0) {
+                println("${configCopy}:Updating versionGroupAligns[${details.requested.group}] to '${inComingVersion}'")
+                versionGroupAligns[details.requested.group]['version'] = inComingVersion
+            }
         }
 
         triggerResolutionStrategy(configCopy)
-        if (rootDependencyChanged)
-            generateHighestVersionsForGroups(configCopy)
     }
 
     static void triggerResolutionStrategy(Object configuration) {
-        configuration.resolvedConfiguration.resolvedArtifacts
+        // New
+        //org.gradle.api.internal.artifacts.ivyservice.ErrorHandlingConfigurationResolver
+        def resolutionResult = configuration.incoming.resolutionResult
+        println "11111111111111111 resolutionResult: ${resolutionResult}"
+
+       // org.gradle.api.internal.artifacts.configurations.DefaultConfiguration // $ConfigurationResolvableDependencies
+        def artifacts = configuration.incoming.artifacts
+        println " 444444444 getArtifacts: ${artifacts}"
+
+        println "555555: ${artifacts.getArtifacts()}"
+        //org.gradle.api.internal.artifacts.configurations.DefaultConfiguration // $ConfigurationArtifactCollection
+
+        resolutionResult.allDependencies {
+            println "3333333: ${it}"
+        }
+
+        // Existing trigger
+        def resolvedArtifacts = configuration.resolvedConfiguration.resolvedArtifacts
+        println "2222222222 ${resolvedArtifacts}"
     }
 
     static String getVersionFromDependencyResolveDetails(DependencyResolveDetails details) {
