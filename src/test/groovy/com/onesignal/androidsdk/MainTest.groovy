@@ -12,17 +12,18 @@ class MainTest extends Specification {
     File buildFile
 
     def gradleVersions = [
-//        '2.14.1': 'com.android.tools.build:gradle:2.2.3',
+        '2.14.1': 'com.android.tools.build:gradle:2.2.3',
         '4.3': 'com.android.tools.build:gradle:3.0.0'
     ]
 
     def buildArgumentSets = [
         '2.14.1': [
-//            ['dependencies', '--configuration', 'compile'],
+            ['dependencies', '--configuration', 'compile'],
             ['dependencies', '--configuration', '_debugCompile']
         ],
         '4.3': [
-//            ['dependencies', '--configuration', 'compile'],
+            // compile does not work on it's own for tests since we use variant.compileConfiguration
+            ['dependencies', '--configuration', 'compile'],
             ['dependencies', '--configuration', 'debugCompileClasspath'] //  '--stacktrace'
         ]
     ]
@@ -100,6 +101,11 @@ class MainTest extends Specification {
 
         gradleVersions.each { gradleVersion ->
             buildArgumentSets[gradleVersion.key].each { buildArguments ->
+                println "gradleVersion.key: ${gradleVersion.key}"
+                println "buildParams['skipGradleVersion']:  ${buildParams['skipGradleVersion']}"
+                if (buildParams['skipGradleVersion'] == gradleVersion.key)
+                    return // return here == "closure break"
+
                 if (testProjectDir != null)
                     testProjectDir.delete()
 
@@ -126,9 +132,7 @@ class MainTest extends Specification {
     }
 
     def "OneSignal version 3.6.4"() {
-        def compileLines = """\
-        compile 'com.onesignal:OneSignal:3.6.4'
-        """
+        def compileLines = "compile 'com.onesignal:OneSignal:3.6.4'"
 
         when:
         def results = runGradleProject([compileLines : compileLines])
@@ -146,9 +150,13 @@ class MainTest extends Specification {
         def compileLines = "compile 'com.onesignal:OneSignal:3.5.+'"
 
         when:
-        def results = runGradleProject([compileLines : compileLines])
+        def results = runGradleProject([
+            compileLines : compileLines,
+            skipGradleVersion: '2.14.1'
+        ])
 
         then:
+        assert results // Asserting existence and contains 1+ entries
         results.each {
             assert it.value.contains('\\--- com.onesignal:OneSignal:3.5.+ -> 3.6.3')
             assert it.value.contains(' +--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
