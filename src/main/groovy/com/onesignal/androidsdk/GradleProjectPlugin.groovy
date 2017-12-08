@@ -71,11 +71,11 @@ class GradleProjectPlugin implements Plugin<Project> {
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
         moduleVersionOverrides = [:]
 
-        resolutionHooksForAndroidPlugin3()
-        resolutionHooksForAndroidPlugin2()
+        resolutionHooksForAndroidPluginV3()
+        resolutionHooksForAndroidPluginV2()
     }
 
-    static void resolutionHooksForAndroidPlugin3() {
+    static void resolutionHooksForAndroidPluginV3() {
         project.afterEvaluate {
             project.android.applicationVariants.all { variant ->
                 // compileConfiguration is new in 3.0.0
@@ -84,32 +84,28 @@ class GradleProjectPlugin implements Plugin<Project> {
 
                 def configuration = variant.compileConfiguration
 
-                // This uses configuration.copy,
-                //    however the resolves does not trigger on the copy of compileConfiguration
-                // generateHighestVersionsForGroups(configuration)
-                doAndroid3ResolutionStrategy(configuration)
+                doResolutionStrategyAndroidPluginV3(configuration)
             }
         }
     }
 
-    static void resolutionHooksForAndroidPlugin2() {
+    static void resolutionHooksForAndroidPluginV2() {
         project.configurations.all { configuration ->
             project.afterEvaluate {
-                if (!isAndroidPluginVersion3()) {
+                if (!isAndroidPluginV3()) {
                     generateHighestVersionsForGroups(configuration)
-                    doAndroid2ResolutionStrategy(configuration)
+                    doResolutionStrategyAndroidPluginV2(configuration)
                 }
             }
 
             // Catches Android specific tasks, <buildType>CompileClasspath
             project.dependencies {
-                generateHighestVersionsForGroups(configuration)
-                doAndroid2ResolutionStrategy(configuration)
+                doResolutionStrategyAndroidPluginV2(configuration)
             }
         }
     }
 
-    static void doAndroid2ResolutionStrategy(Object configuration) {
+    static void doResolutionStrategyAndroidPluginV2(Object configuration) {
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
             // Doesn't seem to detect the targetSDK on 2.14
             // doMinimumVersionUpgradeOnDetail(configuration, details)
@@ -122,15 +118,13 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
-    static void doAndroid3ResolutionStrategy(Object configuration) {
+    static void doResolutionStrategyAndroidPluginV3(Object configuration) {
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
             project.android.applicationVariants.all { variant ->
                 doMinimumVersionUpgradeOnDetail(configuration, details)
 
-                if (isAndroidPluginVersion3()) {
-                    project.configurations.all { localConfiguration ->
-                        generateHighestVersionsForGroups(localConfiguration)
-                    }
+                project.configurations.all { localConfiguration ->
+                    generateHighestVersionsForGroups(localConfiguration)
                 }
 
                 doGroupAlignStrategyOnDetail(details)
@@ -296,7 +290,7 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     // project.android.@plugin - This looks to be on the AppExtension class however this didn't work
     // Found 'enforceUniquePackageName' by comparing project.android.properties between versions
-    static boolean isAndroidPluginVersion3() {
+    static boolean isAndroidPluginV3() {
         return !project.android.hasProperty('enforceUniquePackageName')
     }
 
@@ -324,7 +318,11 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void triggerResolutionStrategy(Object configuration) {
-        configuration.resolvedConfiguration.resolvedArtifacts
+        // Will throw on 'compile' and 'implementation' tasks.
+        // Checking for configuration.name == 'compile' || 'implementation' skips to much however
+        try {
+           configuration.resolvedConfiguration.resolvedArtifacts
+        } catch (def e) {}
     }
 
     static String getVersionFromDependencyResolveDetails(DependencyResolveDetails details) {
