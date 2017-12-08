@@ -11,30 +11,33 @@ class MainTest extends Specification {
     String buildFileStr
     File buildFile
 
-    def gradleVersions = [
-        '2.14.1': 'com.android.tools.build:gradle:2.2.3',
-        '4.4': 'com.android.tools.build:gradle:3.0.1'
-    ]
-
-    def buildArgumentSets = [
-        '2.14.1': [
-            ['dependencies', '--configuration', 'compile', '--info'],
-            ['dependencies', '--configuration', '_debugCompile', '--info']
-        ],
-        '4.4': [
-            // compile does not work on it's own for tests since we use variant.compileConfiguration
-            ['dependencies', '--configuration', 'compile', '--info'],
-            ['dependencies', '--configuration', 'debugCompileClasspath', '--info'] //  '--stacktrace'
-        ]
-    ]
+    def gradleVersions = [:]
+    def buildArgumentSets = [:]
 
     def defaultBuildParams = [
         compileSdkVersion: 26,
         targetSdkVersion: 26
     ]
 
-    // Before All tests
-    def setup() { }
+    // Before each test
+    def setup() {
+        gradleVersions = [
+            '2.14.1': 'com.android.tools.build:gradle:2.2.3',
+            '4.4': 'com.android.tools.build:gradle:3.0.1'
+        ]
+
+        buildArgumentSets = [
+            '2.14.1': [
+                ['dependencies', '--configuration', 'compile', '--info'],
+                ['dependencies', '--configuration', '_debugCompile', '--info']
+            ],
+            '4.4': [
+                // compile does not work on it's own for tests since we use variant.compileConfiguration
+                ['dependencies', '--configuration', 'compile', '--info'],
+                ['dependencies', '--configuration', 'debugCompileClasspath', '--info'] //  '--stacktrace'
+            ]
+        ]
+    }
 
     def createManifest(String path) {
         def androidManifest = testProjectDir.newFile("${path}/AndroidManifest.xml")
@@ -89,9 +92,12 @@ class MainTest extends Specification {
                     versionCode 1
                     versionName "1.0"
                 }
+                
                 buildTypes {
                     debug { }
                 }
+
+                ${buildSections['androidSectionExtras']}
             }
             
             dependencies {
@@ -338,6 +344,51 @@ class MainTest extends Specification {
             assert it.value.contains('+--- com.google.android.gms:play-services-location:[10.2.1,11.3.0) -> 11.2.2')
             assert it.value.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.1.0 (*)')
             assert it.value.contains('+--- com.android.support:appcompat-v7:25.0.0 -> 26.1.0')
+            assert it.value.contains('\\--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
+        }
+    }
+
+    def "Ensure flavors work on Gradle 3_3 and latest"() {
+        gradleVersions['3.3'] = 'com.android.tools.build:gradle:2.3.3'
+
+        buildArgumentSets.remove('2.14.1')
+
+        buildArgumentSets['3.3'] = [
+            ['dependencies', '--configuration', 'compile', '--info'],
+            ['dependencies', '--configuration', '_sandboxDebugCompile', '--info']
+        ]
+
+        buildArgumentSets['4.4'] = [
+            ['dependencies', '--configuration', 'compile', '--info'],
+            ['dependencies', '--configuration', 'sandboxDebugCompileClasspath', '--info']
+        ]
+
+        def compileLines = """\
+        compile 'com.onesignal:OneSignal:3.6.4'
+        compile 'com.android.support:appcompat-v7:25.0.0'
+        """
+
+        def androidSectionExtras = """\
+        flavorDimensions 'tier'
+        productFlavors {
+            sandbox {
+                dimension 'tier'
+            }
+        }
+        """
+
+        when:
+        def results = runGradleProject([
+            compileLines: compileLines,
+            androidSectionExtras : androidSectionExtras,
+        ])
+
+        then:
+        results.each {
+            assert it.value.contains('+--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
+            assert it.value.contains('+--- com.google.android.gms:play-services-location:[10.2.1,11.3.0) -> 11.2.2')
+            assert it.value.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.1.0 (*)')
+            assert it.value.contains('\\--- com.android.support:appcompat-v7:25.0.0 -> 26.1.0')
             assert it.value.contains('\\--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
         }
     }
