@@ -13,7 +13,7 @@ class MainTest extends Specification {
 
     def gradleVersions = [
         '2.14.1': 'com.android.tools.build:gradle:2.2.3',
-        '4.3-rc-3': 'com.android.tools.build:gradle:3.0.0'
+        '4.3': 'com.android.tools.build:gradle:3.0.0'
     ]
 
     def buildArgumentSets = [
@@ -21,16 +21,22 @@ class MainTest extends Specification {
             ['dependencies', '--configuration', 'compile'],
             ['dependencies', '--configuration', '_debugCompile']
         ],
-        '4.3-rc-3': [
+        '4.3': [
+            // compile does not work on it's own for tests since we use variant.compileConfiguration
             ['dependencies', '--configuration', 'compile'],
-            ['dependencies', '--configuration', 'debugCompileClasspath']
+            ['dependencies', '--configuration', 'debugCompileClasspath'] //  '--stacktrace'
         ]
     ]
 
-    def setup() {
-    }
+    def defaultBuildParams = [
+        compileSdkVersion: 26,
+        targetSdkVersion: 26
+    ]
 
-    def createBuildFile(int compileVersion, Object buildSections) {
+    // Before All tests
+    def setup() { }
+
+    def createBuildFile(Object buildSections) {
         testProjectDir = new TemporaryFolder()
         testProjectDir.create()
         testProjectDir.newFolder("src", "main")
@@ -69,13 +75,13 @@ class MainTest extends Specification {
             ${buildSections['applyPlugins']}
 
             android {
-                compileSdkVersion ${compileVersion}
+                compileSdkVersion ${buildSections['compileSdkVersion']}
                 buildToolsVersion '26.0.2'
                  defaultConfig {
                     applicationId 'com.app.example'
 
                     minSdkVersion 15
-                    targetSdkVersion 26
+                    targetSdkVersion ${buildSections['targetSdkVersion']}
                     versionCode 1
                     versionName "1.0"
                 }
@@ -90,15 +96,20 @@ class MainTest extends Specification {
         """\
     }
 
-    def runGradleProject(int compileVersion, Object buildParams) {
+    def runGradleProject(Object buildParams) {
         def results = [:]
 
         gradleVersions.each { gradleVersion ->
             buildArgumentSets[gradleVersion.key].each { buildArguments ->
+                println "gradleVersion.key: ${gradleVersion.key}"
+                println "buildParams['skipGradleVersion']:  ${buildParams['skipGradleVersion']}"
+                if (buildParams['skipGradleVersion'] == gradleVersion.key)
+                    return // return here == "closure break"
+
                 if (testProjectDir != null)
                     testProjectDir.delete()
 
-                createBuildFile(compileVersion, buildParams)
+                createBuildFile(defaultBuildParams + buildParams)
 
                 buildFileStr = buildFileStr.replace('com.android.tools.build:gradle:XX.XX.XX', gradleVersion.value)
                 buildFile = testProjectDir.newFile('build.gradle')
@@ -121,12 +132,10 @@ class MainTest extends Specification {
     }
 
     def "OneSignal version 3.6.4"() {
-        def compileLines = """\
-        compile 'com.onesignal:OneSignal:3.6.4'
-        """
+        def compileLines = "compile 'com.onesignal:OneSignal:3.6.4'"
 
         when:
-        def results = runGradleProject(26, ['compileLines' : compileLines])
+        def results = runGradleProject([compileLines : compileLines])
 
         then:
         results.each {
@@ -134,6 +143,23 @@ class MainTest extends Specification {
             assert it.value.contains('+--- com.google.android.gms:play-services-location:[10.2.1,11.3.0) -> 11.2.2')
             assert it.value.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.1.0 (*)')
             assert it.value.contains('\\--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
+        }
+    }
+
+    def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26"() {
+        def compileLines = "compile 'com.onesignal:OneSignal:3.5.+'"
+
+        when:
+        def results = runGradleProject([
+            compileLines : compileLines,
+            skipGradleVersion: '2.14.1'
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('\\--- com.onesignal:OneSignal:3.5.+ -> 3.6.3')
+            assert it.value.contains(' +--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
         }
     }
 
@@ -145,7 +171,7 @@ class MainTest extends Specification {
         """
 
         when:
-        def results = runGradleProject(26, ['compileLines' : compileLines])
+        def results = runGradleProject([compileLines: compileLines])
 
         then:
         results.each {
@@ -159,7 +185,7 @@ class MainTest extends Specification {
         """
 
         when:
-        def results = runGradleProject(25, ['compileLines' : compileLines])
+        def results = runGradleProject([compileSdkVersion: 25, compileLines: compileLines])
 
         then:
         results.each {
@@ -175,7 +201,7 @@ class MainTest extends Specification {
         """
 
         when:
-        def results = runGradleProject(26, ['compileLines' : compileLines])
+        def results = runGradleProject([compileLines: compileLines])
 
         then:
         results.each {
@@ -192,7 +218,7 @@ class MainTest extends Specification {
         """
 
         when:
-        def results = runGradleProject(26, ['compileLines' : compileLines])
+        def results = runGradleProject([compileLines: compileLines])
 
         then:
         results.each {
@@ -207,7 +233,7 @@ class MainTest extends Specification {
         """
 
         when:
-        def results = runGradleProject(26, ['compileLines' : compileLines])
+        def results = runGradleProject([compileLines: compileLines])
 
         then:
         results.each {
@@ -223,7 +249,7 @@ class MainTest extends Specification {
         """
 
         when:
-        def results = runGradleProject(26, ['compileLines' : compileLines])
+        def results = runGradleProject([compileLines: compileLines])
 
         then:
         results.each {
@@ -240,7 +266,7 @@ class MainTest extends Specification {
         ]
 
         when:
-        def results = runGradleProject(26, buildParams)
+        def results = runGradleProject(buildParams)
 
         then:
         // apply plugin: 'com.google.gms.google-services' adds `com.google.firebase:firebase-core:9.0.0`

@@ -10,6 +10,10 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.ExactVer
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.LatestVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.SubVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionRangeSelector
+import org.gradle.api.invocation.Gradle
+
+import java.util.regex.Matcher
+import java.util.regex.Pattern
 
 // This Gradle plugin automatically fixes or notifies developer of requires changes to make the
 //    OneSignal Android SDK compatible with the app's project
@@ -49,36 +53,163 @@ class GradleProjectPlugin implements Plugin<Project> {
         ]
     ]
 
+    static final def MINIMUM_MODULE_VERSIONS = [
+        'com.onesignal:OneSignal': [
+            targetSdkVersion: [
+                26: '3.6.3'
+            ]
+        ]
+    ]
+
     static def versionGroupAligns
     static Project project
+    static def moduleVersionOverrides
 
     @Override
     void apply(Project inProject) {
         project = inProject
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
+        moduleVersionOverrides = [:]
 
+        resolutionHooksForAndroidPlugin3()
+        resolutionHooksForAndroidPlugin2()
+    }
+
+    static void resolutionHooksForAndroidPlugin3() {
+        project.afterEvaluate {
+            project.android.applicationVariants.all { variant ->
+                // compileConfiguration is new in 3.0.0
+                if (!variant.hasProperty('compileConfiguration'))
+                    return
+
+                def configuration = variant.compileConfiguration
+
+                // This uses configuration.copy,
+                //    however the resolves does not trigger on the copy of compileConfiguration
+                // generateHighestVersionsForGroups(configuration)
+                doAndroid3ResolutionStrategy(configuration)
+            }
+        }
+    }
+
+    static void resolutionHooksForAndroidPlugin2() {
         project.configurations.all { configuration ->
             project.afterEvaluate {
-                generateHighestVersionsForGroups(configuration)
-                doResolutionStrategy(configuration)
+                if (!isAndroidPluginVersion3()) {
+                    generateHighestVersionsForGroups(configuration)
+                    doAndroid2ResolutionStrategy(configuration)
+                }
             }
 
             // Catches Android specific tasks, <buildType>CompileClasspath
             project.dependencies {
                 generateHighestVersionsForGroups(configuration)
-                doResolutionStrategy(configuration)
+                doAndroid2ResolutionStrategy(configuration)
             }
         }
     }
 
-    static void doResolutionStrategy(Object configuration) {
+    static void doAndroid2ResolutionStrategy(Object configuration) {
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            if (!inGroupAlignList(details))
+            // Doesn't seem to detect the targetSDK on 2.14
+            // doMinimumVersionUpgradeOnDetail(configuration, details)
+
+            // Once doMinimumVersionUpgradeOnDetail is fixed this will loop with compileCopy
+            //  At this point we can skip this by checking for ending 'Copy' in the config name
+            // generateHighestVersionsForGroups(configuration)
+
+            doGroupAlignStrategyOnDetail(details)
+        }
+    }
+
+    static void doAndroid3ResolutionStrategy(Object configuration) {
+        configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            project.android.applicationVariants.all { variant ->
+                doMinimumVersionUpgradeOnDetail(configuration, details)
+
+                if (isAndroidPluginVersion3()) {
+                    project.configurations.all { localConfiguration ->
+                        generateHighestVersionsForGroups(localConfiguration)
+                    }
+                }
+
+                doGroupAlignStrategyOnDetail(details)
+            }
+        }
+    }
+
+    // Notes on new 3.0.0 android gradle plugin way to do resolutionStragegy
+    // https://developer.android.com/studio/build/gradle-plugin-3-0-0-migration.html#new_configurations
+    // Instead, because the new build model delays dependency resolution, you
+// should query and modify the resolution strategy using the Variant API:
+//    android {
+//        applicationVariants.all { variant ->
+//            variant.getCompileConfiguration().resolutionStrategy {
+//                ...
+//            }
+//            variant.runtimeConfiguration.resolutionStrategy {
+//                ...
+//            }
+//            variant.getAnnotationProcessorConfiguration().resolutionStrategy {
+//                ...
+//            }
+//        }
+//    }
+
+
+    // Each variant is created from this internal Android Gradle plugin method
+    // private createTasksForFlavoredBuild(ProductFlavorData... flavorDataList) {
+    // https://stackoverflow.com/questions/31461267/using-a-different-manifestplaceholder-for-each-build-variant
+    static int getCurrentTargetSdkVersion() {
+        def targetSdkVersion = 0
+        project.android.applicationVariants.all { variant ->
+            def mergedFlavor = variant.getMergedFlavor()
+            targetSdkVersion = mergedFlavor.targetSdkVersion.apiLevel
+        }
+
+        return targetSdkVersion
+    }
+
+    static void doMinimumVersionUpgradeOnDetail(Object configuration, DependencyResolveDetails details) {
+        def existingOverrider = moduleVersionOverrides["${details.requested.group}:${details.requested.name}"]
+        if (existingOverrider)
+            details.useVersion(existingOverrider)
+
+        def module = MINIMUM_MODULE_VERSIONS["${details.requested.group}:${details.requested.name}"]
+        if (!module)
+            return
+
+        project.android.applicationVariants.all { variant ->
+            def curSdkVersion = getCurrentTargetSdkVersion()
+
+            if (curSdkVersion == 0)
                 return
 
-            def toVersion = finalAlignmentRules()[details.requested.group]['version']
-            overrideVersion(details, toVersion)
+
+            def curVersion = getVersionFromDependencyResolveDetails(details)
+            def newVersion = null
+            module['targetSdkVersion'].each { key, value ->
+                if (curSdkVersion < key)
+                    return
+
+                def compareVersionResult = compareVersions(value, newVersion ?: curVersion)
+                if (compareVersionResult > 0)
+                    newVersion = value
+            }
+
+            if (newVersion != curVersion && newVersion != null) {
+                moduleVersionOverrides["${details.requested.group}:${details.requested.name}"] = newVersion
+                details.useVersion(newVersion)
+            }
         }
+    }
+
+    static void doGroupAlignStrategyOnDetail(DependencyResolveDetails details) {
+        if (!inGroupAlignList(details))
+            return
+
+        def toVersion = finalAlignmentRules()[details.requested.group]['version']
+        overrideVersion(details, toVersion)
     }
 
     static void compileSdkVersionAlign(Project project, def versionOverride) {
@@ -163,6 +294,12 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
+    // project.android.@plugin - This looks to be on the AppExtension class however this didn't work
+    // Found 'enforceUniquePackageName' by comparing project.android.properties between versions
+    static boolean isAndroidPluginVersion3() {
+        return !project.android.hasProperty('enforceUniquePackageName')
+    }
+
     static void generateHighestVersionsForGroups(def configuration) {
         def configCopy = configuration.copy()
         // canBeResolved not available on Gradle 2.14.1 and older
@@ -170,6 +307,8 @@ class GradleProjectPlugin implements Plugin<Project> {
             configCopy.canBeResolved = true
 
         configCopy.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            doMinimumVersionUpgradeOnDetail(configCopy, details)
+
             if (!inGroupAlignList(details))
                 return
 
