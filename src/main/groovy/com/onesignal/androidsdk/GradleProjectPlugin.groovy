@@ -71,28 +71,29 @@ class GradleProjectPlugin implements Plugin<Project> {
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
         moduleVersionOverrides = [:]
 
-        // This sections works with com.android.tools.build:gradle:3.0.0 on the debugCompileClasspath task.
-        //   However not the compile task as it don't contain a variant.
+        resolutionHooksForAndroidPlugin3()
+        resolutionHooksForAndroidPlugin2()
+    }
+
+    static void resolutionHooksForAndroidPlugin3() {
         project.afterEvaluate {
             project.android.applicationVariants.all { variant ->
-                // Skip pre-3.0.0 versions
+                // compileConfiguration is new in 3.0.0
                 if (!variant.hasProperty('compileConfiguration'))
                     return
 
                 def configuration = variant.compileConfiguration
-                println("variant.compileConfiguration: ${variant.class}")
-                println variant.properties.toString()
 
-                // This uses configuration.copy, however the resolves does not trigger on the copy of compileConfiguration
-                generateHighestVersionsForGroups(configuration)
+                // This uses configuration.copy,
+                //    however the resolves does not trigger on the copy of compileConfiguration
+                // generateHighestVersionsForGroups(configuration)
                 doAndroid3ResolutionStrategy(configuration)
             }
         }
+    }
 
-        // Adding this section triggers resolution to soon when using com.android.tools.build:gradle:3.0.0
-
+    static void resolutionHooksForAndroidPlugin2() {
         project.configurations.all { configuration ->
-            // This Breaks "Upgrade to compatible OneSignal SDK..." but fixes a lot of other tests
             project.afterEvaluate {
                 if (!isAndroidPluginVersion3()) {
                     generateHighestVersionsForGroups(configuration)
@@ -100,8 +101,6 @@ class GradleProjectPlugin implements Plugin<Project> {
                 }
             }
 
-            // Android 2.14 - Required
-            // Android 2.14 - Breaks
             // Catches Android specific tasks, <buildType>CompileClasspath
             project.dependencies {
                 generateHighestVersionsForGroups(configuration)
@@ -112,10 +111,11 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static void doAndroid2ResolutionStrategy(Object configuration) {
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            // doMinimumVersionUpgradeOnDetail doesn't seem to detect the targetSDK on 2.14
+            // Doesn't seem to detect the targetSDK on 2.14
             // doMinimumVersionUpgradeOnDetail(configuration, details)
-            // Attempt to fix doMinimumVersionUpgradeOnDetail for 2.14,
-            //     it just loops on compileCopy however it can be fixed with a config name check
+
+            // Once doMinimumVersionUpgradeOnDetail is fixed this will loop with compileCopy
+            //  At this point we can skip this by checking for ending 'Copy' in the config name
             // generateHighestVersionsForGroups(configuration)
 
             doGroupAlignStrategyOnDetail(details)
@@ -138,20 +138,6 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
-    static String getCurrentVariant() {
-        Gradle gradle = project.getGradle()
-        Pattern pattern = Pattern.compile(":assemble(.*?)(Release|Debug)")
-        Matcher matcher = pattern.matcher(gradle.getStartParameter().getTaskRequests().toString())
-        if (matcher.matches()) {
-            // find()
-            println("Current Android Varient: ${matcher.group(1)}")
-            return matcher.group(1)
-        }
-
-        return null
-    }
-
-
     // Notes on new 3.0.0 android gradle plugin way to do resolutionStragegy
     // https://developer.android.com/studio/build/gradle-plugin-3-0-0-migration.html#new_configurations
     // Instead, because the new build model delays dependency resolution, you
@@ -171,47 +157,30 @@ class GradleProjectPlugin implements Plugin<Project> {
 //    }
 
 
-    // Each variant is created from this Android Gradle method
+    // Each variant is created from this internal Android Gradle plugin method
     // private createTasksForFlavoredBuild(ProductFlavorData... flavorDataList) {
-
     // https://stackoverflow.com/questions/31461267/using-a-different-manifestplaceholder-for-each-build-variant
     static int getCurrentTargetSdkVersion() {
         def targetSdkVersion = 0
         project.android.applicationVariants.all { variant ->
-//            println("project.android.applicationVariants.all:variant:${variant.name}")
             def mergedFlavor = variant.getMergedFlavor()
-//            println("mergedFlavor:${mergedFlavor}")
-//            println("mergedFlavor.targetSdkVersion: ${mergedFlavor.targetSdkVersion}")
-//            println("mergedFlavor.targetSdkVersion:apiLevel: ${mergedFlavor.targetSdkVersion.apiLevel}")
-
-//          if (variant.name.equals('debugCompileClasspath')) {
-              targetSdkVersion = mergedFlavor.targetSdkVersion.apiLevel
-            //  return mergedFlavor.targetSdkVersion.apiLevel
-//          }
+            targetSdkVersion = mergedFlavor.targetSdkVersion.apiLevel
         }
 
-        println("getCurrentTargetSdkVersion:returning:${targetSdkVersion}")
         return targetSdkVersion
     }
 
     static void doMinimumVersionUpgradeOnDetail(Object configuration, DependencyResolveDetails details) {
         def existingOverrider = moduleVersionOverrides["${details.requested.group}:${details.requested.name}"]
-        if (existingOverrider) {
-            println("${configuration}:**********************doMinimumVersionUpgradeOnDetail:existingOverrider: ${existingOverrider}")
+        if (existingOverrider)
             details.useVersion(existingOverrider)
-        }
 
         def module = MINIMUM_MODULE_VERSIONS["${details.requested.group}:${details.requested.name}"]
         if (!module)
             return
 
         project.android.applicationVariants.all { variant ->
-
-            println("configuration.name: ${configuration.name}")
-            println("project.android: ${project.android}")
-
             def curSdkVersion = getCurrentTargetSdkVersion()
-            println("getCurrentTargetSdkVersion: ${curSdkVersion}")
 
             if (curSdkVersion == 0)
                 return
@@ -220,12 +189,6 @@ class GradleProjectPlugin implements Plugin<Project> {
             def curVersion = getVersionFromDependencyResolveDetails(details)
             def newVersion = null
             module['targetSdkVersion'].each { key, value ->
-
-//            ApplicationVariantData appVariantData = new ApplicationVariantData(variantConfig)
-//            appVariantData.variantConfiguration.targetSdkVersion
-
-                // variantData.variantConfiguration.targetSdkVersion
-
                 if (curSdkVersion < key)
                     return
 
@@ -236,7 +199,6 @@ class GradleProjectPlugin implements Plugin<Project> {
 
             if (newVersion != curVersion && newVersion != null) {
                 moduleVersionOverrides["${details.requested.group}:${details.requested.name}"] = newVersion
-                println("${configuration}:@@@@@@@@@@@@@@@@@@@@@@@@@@@@@doMinimumVersionUpgradeOnDetail:newVersion: ${newVersion}")
                 details.useVersion(newVersion)
             }
         }
@@ -339,15 +301,12 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void generateHighestVersionsForGroups(def configuration) {
-//        println("generateHighestVersionsForGroups:configuration:${configuration}")
-
         def configCopy = configuration.copy()
         // canBeResolved not available on Gradle 2.14.1 and older
         if (configCopy.hasProperty('canBeResolved'))
             configCopy.canBeResolved = true
 
         configCopy.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            println "############configCopy.resolutionStrategy.eachDependency"
             doMinimumVersionUpgradeOnDetail(configCopy, details)
 
             if (!inGroupAlignList(details))
@@ -357,39 +316,15 @@ class GradleProjectPlugin implements Plugin<Project> {
             def inComingVersion = getVersionFromDependencyResolveDetails(details)
 
             def compareVersionResult = compareVersions(inComingVersion, curOverrideVersion)
-            if (compareVersionResult > 0) {
-                println("${configCopy}:Updating versionGroupAligns[${details.requested.group}] to '${inComingVersion}'")
+            if (compareVersionResult > 0)
                 versionGroupAligns[details.requested.group]['version'] = inComingVersion
-            }
         }
 
         triggerResolutionStrategy(configCopy)
     }
 
     static void triggerResolutionStrategy(Object configuration) {
-        // debugArtifacts(configuration)
-
-        // Existing trigger
-        def resolvedArtifacts = configuration.resolvedConfiguration.resolvedArtifacts
-//        println "2222222222 ${resolvedArtifacts}"
-    }
-
-    static void debugArtifacts(Object configuration) {
-        // New
-        //org.gradle.api.internal.artifacts.ivyservice.ErrorHandlingConfigurationResolver
-        def resolutionResult = configuration.incoming.resolutionResult
-        println "11111111111111111 resolutionResult: ${resolutionResult}"
-
-        // org.gradle.api.internal.artifacts.configurations.DefaultConfiguration // $ConfigurationResolvableDependencies
-        def artifacts = configuration.incoming.artifacts
-        println " 444444444 getArtifacts: ${artifacts}"
-
-        println "555555: ${artifacts.getArtifacts()}"
-        //org.gradle.api.internal.artifacts.configurations.DefaultConfiguration // $ConfigurationArtifactCollection
-
-        resolutionResult.allDependencies {
-            println "3333333: ${it}"
-        }
+        configuration.resolvedConfiguration.resolvedArtifacts
     }
 
     static String getVersionFromDependencyResolveDetails(DependencyResolveDetails details) {

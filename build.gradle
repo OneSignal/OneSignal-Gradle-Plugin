@@ -74,7 +74,7 @@ uploadArchives {
 // 1. Run from root to create local package
 //      ./gradlew uploadArchives
 // 2. In build.gradle on your test project add the following to buildscript -> repositories {..}
-//      maven { url uri('../repo') }
+//      maven { url uri('../../repo') }
 // 3. Update '../repo' to your correct relative path
 // 4. To the same build.gradle under buildscript -> dependencies
 //      classpath 'com.onesignal:onesignal-gradle-plugin:0.7.0'
