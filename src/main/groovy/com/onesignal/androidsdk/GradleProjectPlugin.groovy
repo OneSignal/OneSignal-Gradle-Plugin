@@ -22,6 +22,26 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionR
 // - Source of Android Gradle Plugin (com.android.application)
 //   https://android.googlesource.com/platform/tools/build/+/oreo-release/gradle/src/main/groovy/com/android/build/gradle/BasePlugin.groovy
 
+
+// Notes on new 3.0.0 android gradle plugin way to do resolutionStrategy
+// https://developer.android.com/studio/build/gradle-plugin-3-0-0-migration.html#new_configurations
+// Instead, because the new build model delays dependency resolution, you
+// should query and modify the resolution strategy using the Variant API:
+//    android {
+//        applicationVariants.all { variant ->
+//            variant.getCompileConfiguration().resolutionStrategy {
+//                ...
+//            }
+//            variant.runtimeConfiguration.resolutionStrategy {
+//                ...
+//            }
+//            variant.getAnnotationProcessorConfiguration().resolutionStrategy {
+//                ...
+//            }
+//        }
+//    }
+
+
 class GradleProjectPlugin implements Plugin<Project> {
 
     static final def VERSION_GROUP_ALIGNS = [
@@ -108,10 +128,10 @@ class GradleProjectPlugin implements Plugin<Project> {
             return
 
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            // The Android 2.14.1 plugin doesn't work with doMinimumVersionUpgradeOnDetail
+            // The Android 2.14.1 plugin doesn't work with doTargetSdkVersionAlign
             //   We are not able to get the targetSDK version in this case.
 
-            // Once doMinimumVersionUpgradeOnDetail is fixed this will loop with compileCopy
+            // Once doTargetSdkVersionAlign is fixed this will loop with compileCopy
             //  At this point we can skip this by checking for ending 'Copy' in the config name
             // generateHighestVersionsForGroups(configuration)
 
@@ -122,34 +142,16 @@ class GradleProjectPlugin implements Plugin<Project> {
     static void doResolutionStrategyAndroidPluginV3(Object configuration) {
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
             project.android.applicationVariants.all { variant ->
-                doMinimumVersionUpgradeOnDetail(configuration, details)
+                doTargetSdkVersionAlign(details)
 
-                project.configurations.all { localConfiguration ->
-                    generateHighestVersionsForGroups(localConfiguration)
+                project.configurations.all { config ->
+                    generateHighestVersionsForGroups(config)
                 }
 
                 doGroupAlignStrategyOnDetail(details)
             }
         }
     }
-
-    // Notes on new 3.0.0 android gradle plugin way to do resolutionStragegy
-    // https://developer.android.com/studio/build/gradle-plugin-3-0-0-migration.html#new_configurations
-    // Instead, because the new build model delays dependency resolution, you
-// should query and modify the resolution strategy using the Variant API:
-//    android {
-//        applicationVariants.all { variant ->
-//            variant.getCompileConfiguration().resolutionStrategy {
-//                ...
-//            }
-//            variant.runtimeConfiguration.resolutionStrategy {
-//                ...
-//            }
-//            variant.getAnnotationProcessorConfiguration().resolutionStrategy {
-//                ...
-//            }
-//        }
-//    }
 
 
     // Each variant is created from this internal Android Gradle plugin method
@@ -165,7 +167,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         return targetSdkVersion
     }
 
-    static void doMinimumVersionUpgradeOnDetail(Object configuration, DependencyResolveDetails details) {
+    static void doTargetSdkVersionAlign(DependencyResolveDetails details) {
         def existingOverrider = moduleVersionOverrides["${details.requested.group}:${details.requested.name}"]
         if (existingOverrider)
             details.useVersion(existingOverrider)
@@ -305,7 +307,7 @@ class GradleProjectPlugin implements Plugin<Project> {
             configCopy.canBeResolved = true
 
         configCopy.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            doMinimumVersionUpgradeOnDetail(configCopy, details)
+            doTargetSdkVersionAlign(details)
 
             if (!inGroupAlignList(details))
                 return
