@@ -220,6 +220,9 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (resolvedVersion == '0.0.0')
             return
 
+        if (details.requested.version == resolvedVersion)
+            return
+
         details.useVersion(resolvedVersion)
         logModuleOverride(details, resolvedVersion)
     }
@@ -228,7 +231,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         def modName = "${details.requested.group}:${details.requested.name}"
         def versionsMsg = "'${details.requested.version}' to '${resolvedVersion}'"
         def msg = "${modName} overridden from ${versionsMsg}"
-        project.logger.warn("OneSignalProjectPlugin: ${msg}")
+        project.logger.info("OneSignalProjectPlugin: ${msg}")
     }
 
     static boolean inGroupAlignList(def details) {
