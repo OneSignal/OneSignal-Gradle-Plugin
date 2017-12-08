@@ -102,9 +102,14 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void doResolutionStrategyAndroidPluginV2(Object configuration) {
+        // The Android 3.3 plugin resolves this before we can
+        // Skip it in this case to prevent a build error
+        if (configuration.name.endsWith('WearApp'))
+            return
+
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            // Doesn't seem to detect the targetSDK on 2.14
-            // doMinimumVersionUpgradeOnDetail(configuration, details)
+            // The Android 2.14.1 plugin doesn't work with doMinimumVersionUpgradeOnDetail
+            //   We are not able to get the targetSDK version in this case.
 
             // Once doMinimumVersionUpgradeOnDetail is fixed this will loop with compileCopy
             //  At this point we can skip this by checking for ending 'Copy' in the config name
