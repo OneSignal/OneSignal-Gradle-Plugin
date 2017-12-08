@@ -18,13 +18,13 @@ class MainTest extends Specification {
 
     def buildArgumentSets = [
         '2.14.1': [
-            ['dependencies', '--configuration', 'compile'],
-            ['dependencies', '--configuration', '_debugCompile']
+            ['dependencies', '--configuration', 'compile', '--info'],
+            ['dependencies', '--configuration', '_debugCompile', '--info']
         ],
         '4.3': [
             // compile does not work on it's own for tests since we use variant.compileConfiguration
-            ['dependencies', '--configuration', 'compile'],
-            ['dependencies', '--configuration', 'debugCompileClasspath'] //  '--stacktrace'
+            ['dependencies', '--configuration', 'compile', '--info'],
+            ['dependencies', '--configuration', 'debugCompileClasspath', '--info'] //  '--stacktrace'
         ]
     ]
 
