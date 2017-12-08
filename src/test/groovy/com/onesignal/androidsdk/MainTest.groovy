@@ -146,10 +146,8 @@ class MainTest extends Specification {
 
         gradleVersions.each { gradleVersion ->
             buildArgumentSets[gradleVersion.key].each { buildArguments ->
-                println "gradleVersion.key: ${gradleVersion.key}"
-                println "buildParams['skipGradleVersion']:  ${buildParams['skipGradleVersion']}"
                 if (buildParams['skipGradleVersion'] == gradleVersion.key)
-                    return // return here == "closure break"
+                    return // == "closure break"
 
                 if (testProjectDir != null)
                     testProjectDir.delete()
@@ -179,7 +177,7 @@ class MainTest extends Specification {
         return results
     }
 
-    def "OneSignal version 3.6.4"() {
+    def "OneSignal version 3_6_4"() {
         def compileLines = "compile 'com.onesignal:OneSignal:3.6.4'"
 
         when:

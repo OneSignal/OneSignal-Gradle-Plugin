@@ -124,7 +124,8 @@ class GradleProjectPlugin implements Plugin<Project> {
     static void doResolutionStrategyAndroidPluginV2(Object configuration) {
         // The Android 3.3 plugin resolves this before we can
         // Skip it in this case to prevent a build error
-        if (configuration.name.endsWith('WearApp'))
+        def configName = configuration.name
+        if (configName.endsWith('WearApp') || configName.endsWith('wearApp'))
             return
 
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
