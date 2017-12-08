@@ -21,7 +21,10 @@ apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'
   - `com.android.support`
 - Ensures `com.android.support` is never higher than `compileSdkVersion`.
 - Ensures you are using a compatible OneSignal SDK version for the `targetSdkVersion` you're using.
-- Future: Other warnings and checks OneSignal specific requirements such as app_id and notification icons.
+- Future: Other warnings and checks specific to OneSignal such as app_id and notification icons.
+
+## Compatibility
+Compatible with Gradle 2.14.1+ and AGP (Android Gradle Plugin) 2.2.3+. Latest tested versions Gradle 4.4 and AGP 3.0.1.
 
 ## Change Log
 See this repository's [release tags](https://github.com/OneSignal/OneSignal-Gradle-Plugin/releases) for a complete change log.
