@@ -13,7 +13,7 @@ class MainTest extends Specification {
 
     def gradleVersions = [
         '2.14.1': 'com.android.tools.build:gradle:2.2.3',
-        '4.3': 'com.android.tools.build:gradle:3.0.0'
+        '4.4': 'com.android.tools.build:gradle:3.0.1'
     ]
 
     def buildArgumentSets = [
@@ -21,7 +21,7 @@ class MainTest extends Specification {
             ['dependencies', '--configuration', 'compile', '--info'],
             ['dependencies', '--configuration', '_debugCompile', '--info']
         ],
-        '4.3': [
+        '4.4': [
             // compile does not work on it's own for tests since we use variant.compileConfiguration
             ['dependencies', '--configuration', 'compile', '--info'],
             ['dependencies', '--configuration', 'debugCompileClasspath', '--info'] //  '--stacktrace'

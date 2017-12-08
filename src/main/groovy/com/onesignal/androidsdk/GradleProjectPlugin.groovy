@@ -10,10 +10,6 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.ExactVer
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.LatestVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.SubVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionRangeSelector
-import org.gradle.api.invocation.Gradle
-
-import java.util.regex.Matcher
-import java.util.regex.Pattern
 
 // This Gradle plugin automatically fixes or notifies developer of requires changes to make the
 //    OneSignal Android SDK compatible with the app's project
