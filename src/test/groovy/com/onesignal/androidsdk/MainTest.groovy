@@ -36,17 +36,21 @@ class MainTest extends Specification {
     // Before All tests
     def setup() { }
 
-    def createBuildFile(Object buildSections) {
-        testProjectDir = new TemporaryFolder()
-        testProjectDir.create()
-        testProjectDir.newFolder("src", "main")
-        def androidManifest = testProjectDir.newFile('src/main/AndroidManifest.xml')
+    def createManifest(String path) {
+        def androidManifest = testProjectDir.newFile("${path}/AndroidManifest.xml")
         androidManifest << '''\
             <?xml version="1.0" encoding="utf-8"?>
             <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             package="com.app.example">
             </manifest>
         '''.stripIndent()
+    }
+
+    def createBuildFile(Object buildSections) {
+        testProjectDir = new TemporaryFolder()
+        testProjectDir.create()
+        testProjectDir.newFolder("src", "main")
+        createManifest('src/main')
 
         buildFileStr = """\
             buildscript {
@@ -96,6 +100,41 @@ class MainTest extends Specification {
         """\
     }
 
+    def createSubProject(Object buildSections) {
+        if (buildSections['subProjectCompileLines'] == null)
+            return
+
+        testProjectDir.newFolder('subProject', "src", "main")
+
+        createManifest('subProject/src/main')
+        testProjectDir.newFile('settings.gradle') << "include ':subProject'"
+
+        def subProjectBuildFile = testProjectDir.newFile('subProject/build.gradle')
+
+        def subBuildFileStr = """\
+            apply plugin: 'com.android.library'
+
+            android {
+                compileSdkVersion ${buildSections['compileSdkVersion']}
+                buildToolsVersion '26.0.2'
+                 defaultConfig {
+                    minSdkVersion 15
+                    targetSdkVersion ${buildSections['targetSdkVersion']}
+                }
+                buildTypes {
+                    main { }
+                    debug { }
+                }
+            }
+            
+            dependencies {
+                ${buildSections['subProjectCompileLines']}
+            }
+        """\
+
+        subProjectBuildFile << subBuildFileStr
+    }
+
     def runGradleProject(Object buildParams) {
         def results = [:]
 
@@ -109,11 +148,14 @@ class MainTest extends Specification {
                 if (testProjectDir != null)
                     testProjectDir.delete()
 
-                createBuildFile(defaultBuildParams + buildParams)
+                def currentParams = defaultBuildParams + buildParams
 
+                createBuildFile(currentParams)
                 buildFileStr = buildFileStr.replace('com.android.tools.build:gradle:XX.XX.XX', gradleVersion.value)
                 buildFile = testProjectDir.newFile('build.gradle')
                 buildFile << buildFileStr
+
+                createSubProject(currentParams)
 
                 def result =
                     GradleRunner.create()
@@ -180,9 +222,7 @@ class MainTest extends Specification {
     }
 
     def "Uses support library 25 when compileSdkVersion is 25"() {
-        def compileLines = """\
-        compile 'com.android.support:support-v4:26.0.0'
-        """
+        def compileLines = "compile 'com.android.support:support-v4:26.0.0'"
 
         when:
         def results = runGradleProject([compileSdkVersion: 25, compileLines: compileLines])
@@ -273,6 +313,32 @@ class MainTest extends Specification {
         //  Making sure our plugin aligns to the match other groups.
         results.each {
             assert it.value.contains('+--- com.google.firebase:firebase-core:9.0.0 -> 11.2.0')
+        }
+    }
+
+    def "Test with sub project"() {
+        def compileLines = """\
+        compile 'com.onesignal:OneSignal:3.6.4'
+        compile 'com.android.support:appcompat-v7:25.0.0'
+        compile 'com.android.support:support-v4:26.0.0'
+        compile(project(path: "subProject"))
+        """
+
+        when:
+        def results = runGradleProject([
+            compileLines : compileLines,
+            subProjectCompileLines: "compile 'com.android.support:appcompat-v7:24.0.0'"
+        ])
+
+        // Use task 'androidDependencies' for easier debugging
+
+        then:
+        results.each {
+            assert it.value.contains('+--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
+            assert it.value.contains('+--- com.google.android.gms:play-services-location:[10.2.1,11.3.0) -> 11.2.2')
+            assert it.value.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.1.0 (*)')
+            assert it.value.contains('+--- com.android.support:appcompat-v7:25.0.0 -> 26.1.0')
+            assert it.value.contains('\\--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
         }
     }
 }
