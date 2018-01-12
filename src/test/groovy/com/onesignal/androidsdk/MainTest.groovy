@@ -91,6 +91,7 @@ class MainTest extends Specification {
                     targetSdkVersion ${buildSections['targetSdkVersion']}
                     versionCode 1
                     versionName "1.0"
+                    multiDexEnabled true
                 }
                 
                 buildTypes {
@@ -204,7 +205,7 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains('\\--- com.onesignal:OneSignal:3.5.+ -> 3.6.3')
+            assert it.value.contains('--- com.onesignal:OneSignal:3.5.+ -> 3.6.3')
             assert it.value.contains(' +--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
         }
     }
@@ -233,7 +234,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('\\--- com.android.support:support-v4:26.0.0 -> 25.4.0')
+            assert it.value.contains('--- com.android.support:support-v4:26.0.0 -> 25.4.0')
         }
     }
 
@@ -251,7 +252,7 @@ class MainTest extends Specification {
         results.each {
             assert it.value.contains('+--- com.google.firebase:firebase-core:11.0.0 -> 11.4.0')
             assert it.value.contains('+--- com.google.android.gms:play-services-gcm:11.2.0 -> 11.4.0')
-            assert it.value.contains('\\--- com.google.android.gms:play-services-location:11.4.0')
+            assert it.value.contains('--- com.google.android.gms:play-services-location:11.4.0')
         }
     }
 
@@ -282,7 +283,7 @@ class MainTest extends Specification {
         then:
         results.each {
             assert it.value.contains('+--- com.android.support:appcompat-v7:25.0.+ -> 25.4.0')
-            assert it.value.contains('\\--- com.android.support:support-v4:25.+ -> 25.4.0 (*)')
+            assert it.value.contains('--- com.android.support:support-v4:25.+ -> 25.4.0 (*)')
         }
     }
 
@@ -298,7 +299,7 @@ class MainTest extends Specification {
         then:
         results.each {
             assert it.value.contains('+--- com.android.support:appcompat-v7:[25.0.0, 26.0.0) -> 26.0.0-beta2')
-            assert it.value.contains('\\--- com.android.support:support-v4:25.+ -> 26.0.0-beta2 (*)')
+            assert it.value.contains('--- com.android.support:support-v4:25.+ -> 26.0.0-beta2 (*)')
         }
     }
 
@@ -386,8 +387,8 @@ class MainTest extends Specification {
             assert it.value.contains('+--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
             assert it.value.contains('+--- com.google.android.gms:play-services-location:[10.2.1,11.3.0) -> 11.2.2')
             assert it.value.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.1.0 (*)')
-            assert it.value.contains('\\--- com.android.support:appcompat-v7:25.0.0 -> 26.1.0')
-            assert it.value.contains('\\--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
+            assert it.value.contains('--- com.android.support:appcompat-v7:25.0.0 -> 26.1.0')
+            assert it.value.contains('--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
         }
     }
 }
