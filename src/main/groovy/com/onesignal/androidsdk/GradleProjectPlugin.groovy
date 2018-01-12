@@ -80,12 +80,14 @@ class GradleProjectPlugin implements Plugin<Project> {
     static def versionGroupAligns
     static Project project
     static def moduleVersionOverrides
+    static def moduleCopied
 
     @Override
     void apply(Project inProject) {
         project = inProject
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
         moduleVersionOverrides = [:]
+        moduleCopied = [:]
 
         resolutionHooksForAndroidPluginV3()
         resolutionHooksForAndroidPluginV2()
@@ -99,7 +101,6 @@ class GradleProjectPlugin implements Plugin<Project> {
                     return
 
                 def configuration = variant.compileConfiguration
-
                 doResolutionStrategyAndroidPluginV3(configuration)
             }
         }
@@ -108,10 +109,10 @@ class GradleProjectPlugin implements Plugin<Project> {
     static void resolutionHooksForAndroidPluginV2() {
         project.configurations.all { configuration ->
             project.afterEvaluate {
-                if (!isAndroidPluginV3()) {
-                    generateHighestVersionsForGroups(configuration)
-                    doResolutionStrategyAndroidPluginV2(configuration)
-                }
+                if (isAndroidPluginV3())
+                    return
+                generateHighestVersionsForGroups(configuration)
+                doResolutionStrategyAndroidPluginV2(configuration)
             }
 
             // Catches Android specific tasks, <buildType>CompileClasspath
@@ -165,7 +166,7 @@ class GradleProjectPlugin implements Plugin<Project> {
             targetSdkVersion = mergedFlavor.targetSdkVersion.apiLevel
         }
 
-        return targetSdkVersion
+        targetSdkVersion
     }
 
     static void doTargetSdkVersionAlign(DependencyResolveDetails details) {
@@ -238,7 +239,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         project.logger.info("OneSignalProjectPlugin: ${msg}")
     }
 
-    static boolean inGroupAlignList(def details) {
+    static boolean inGroupAlignList(details) {
         // Only override groups we define
         def versionOverride = versionGroupAligns[details.requested.group]
         if (!versionOverride)
@@ -248,16 +249,20 @@ class GradleProjectPlugin implements Plugin<Project> {
         def omitModules = versionOverride['omitModules']
         if (omitModules && omitModules.contains(details.requested.name))
             return false
-        return true
+        true
     }
 
     static String getHighestVersion(String version1, String version2) {
-        return compareVersions(version1, version2) > 0 ? version1 : version2
+        compareVersions(version1, version2) > 0 ? version1 : version2
+    }
+
+    static String moduleGroupAndName(details) {
+        "${details.requested.group}:${details.requested.name}"
     }
 
     static int compareVersions(String version1, String version2) {
         def versionComparator = new DefaultVersionComparator()
-        return versionComparator.compare(new VersionInfo(version1), new VersionInfo(version2))
+        versionComparator.compare(new VersionInfo(version1), new VersionInfo(version2))
     }
 
     static Object finalAlignmentRules() {
@@ -268,7 +273,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         updateMockVersionsIntoGradleVersions(finalVersionGroupAligns)
 
         project.logger.debug("OneSignalProjectPlugin: FINAL ALIGN PART 2: ${finalVersionGroupAligns}")
-        return finalVersionGroupAligns
+        finalVersionGroupAligns
     }
 
     static void alignAcrossGroups(def versionGroupAligns) {
@@ -298,14 +303,24 @@ class GradleProjectPlugin implements Plugin<Project> {
     // project.android.@plugin - This looks to be on the AppExtension class however this didn't work
     // Found 'enforceUniquePackageName' by comparing project.android.properties between versions
     static boolean isAndroidPluginV3() {
-        return !project.android.hasProperty('enforceUniquePackageName')
+        !project.android.hasProperty('enforceUniquePackageName')
+    }
+
+    static void forceCanBeResolved(def configuration) {
+        // canBeResolved not available on Gradle 2.14.1 and older
+        if (configuration.hasProperty('canBeResolved'))
+            configuration.canBeResolved = true
     }
 
     static void generateHighestVersionsForGroups(def configuration) {
+        // Prevent duplicate runs for the same configuration name
+        //   Fixes infinite calls when multiDexEnabled is set
+        if (moduleCopied[configuration.name])
+            return
+        moduleCopied[configuration.name] = true
+
         def configCopy = configuration.copy()
-        // canBeResolved not available on Gradle 2.14.1 and older
-        if (configCopy.hasProperty('canBeResolved'))
-            configCopy.canBeResolved = true
+        forceCanBeResolved(configCopy)
 
         configCopy.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
             doTargetSdkVersionAlign(details)
@@ -329,7 +344,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         // Checking for configuration.name == 'compile' || 'implementation' skips to much however
         try {
            configuration.resolvedConfiguration.resolvedArtifacts
-        } catch (def e) {}
+        } catch (any) {}
     }
 
     static String getVersionFromDependencyResolveDetails(DependencyResolveDetails details) {
@@ -347,8 +362,6 @@ class GradleProjectPlugin implements Plugin<Project> {
             return '9999.9999.9999'
         else
             project.logger.error("OneSignalProjectPlugin: Unkown VersionSelector: ${parsedVersion}")
-
-        return null
     }
 
     static final int MAJOR_INDEX = 0
@@ -381,6 +394,6 @@ class GradleProjectPlugin implements Plugin<Project> {
                 parts[MINOR_INDEX] = minorVersion.toString()
         }
 
-        return parts.join('.')
+        parts.join('.')
     }
 }
