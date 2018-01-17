@@ -1,181 +1,16 @@
 package com.onesignal.androidsdk
 
 import spock.lang.Specification
-import org.junit.rules.TemporaryFolder
-
-import org.gradle.testkit.runner.GradleRunner
 
 class MainTest extends Specification {
 
-    TemporaryFolder testProjectDir
-    String buildFileStr
-    File buildFile
-
-    def gradleVersions = [:]
-    def buildArgumentSets = [:]
-
-    def defaultBuildParams = [
-        compileSdkVersion: 26,
-        targetSdkVersion: 26
-    ]
-
     // Before each test
     def setup() {
-        gradleVersions = [
-            '2.14.1': 'com.android.tools.build:gradle:2.2.3',
-            '4.4': 'com.android.tools.build:gradle:3.0.1'
-        ]
-
-        buildArgumentSets = [
-            '2.14.1': [
-                ['dependencies', '--configuration', 'compile', '--info'],
-                ['dependencies', '--configuration', '_debugCompile', '--info']
-            ],
-            '4.4': [
-                // compile does not work on it's own for tests since we use variant.compileConfiguration
-                ['dependencies', '--configuration', 'compile', '--info'],
-                ['dependencies', '--configuration', 'debugCompileClasspath', '--info'] //  '--stacktrace'
-            ]
-        ]
+        GradleTestTemplate.setup()
     }
 
-    def createManifest(String path) {
-        def androidManifest = testProjectDir.newFile("${path}/AndroidManifest.xml")
-        androidManifest << '''\
-            <?xml version="1.0" encoding="utf-8"?>
-            <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-            package="com.app.example">
-            </manifest>
-        '''.stripIndent()
-    }
-
-    def createBuildFile(Object buildSections) {
-        testProjectDir = new TemporaryFolder()
-        testProjectDir.create()
-        testProjectDir.newFolder("src", "main")
-        createManifest('src/main')
-
-        buildFileStr = """\
-            buildscript {
-                repositories {
-                      jcenter()
-                      maven { url 'https://maven.google.com' }
-                }
-                dependencies {
-                    classpath 'com.android.tools.build:gradle:XX.XX.XX'
-                    ${buildSections['buildscriptDependencies']}
-                }
-            }
-            
-            plugins {
-                id 'com.onesignal.androidsdk.onesignal-gradle-plugin'
-            }
-            
-            allprojects {
-                repositories {
-                    jcenter()
-                    maven { url 'https://maven.google.com' }
-                }
-            }
-
-            apply plugin: 'com.android.application'
-            ${buildSections['applyPlugins']}
-
-            android {
-                compileSdkVersion ${buildSections['compileSdkVersion']}
-                buildToolsVersion '26.0.2'
-                 defaultConfig {
-                    applicationId 'com.app.example'
-
-                    minSdkVersion 15
-                    targetSdkVersion ${buildSections['targetSdkVersion']}
-                    versionCode 1
-                    versionName "1.0"
-                    multiDexEnabled true
-                }
-                
-                buildTypes {
-                    debug { }
-                }
-
-                ${buildSections['androidSectionExtras']}
-            }
-            
-            dependencies {
-                ${buildSections['compileLines']}
-            }
-        """\
-    }
-
-    def createSubProject(Object buildSections) {
-        if (buildSections['subProjectCompileLines'] == null)
-            return
-
-        testProjectDir.newFolder('subProject', "src", "main")
-
-        createManifest('subProject/src/main')
-        testProjectDir.newFile('settings.gradle') << "include ':subProject'"
-
-        def subProjectBuildFile = testProjectDir.newFile('subProject/build.gradle')
-
-        def subBuildFileStr = """\
-            apply plugin: 'com.android.library'
-
-            android {
-                compileSdkVersion ${buildSections['compileSdkVersion']}
-                buildToolsVersion '26.0.2'
-                 defaultConfig {
-                    minSdkVersion 15
-                    targetSdkVersion ${buildSections['targetSdkVersion']}
-                }
-                buildTypes {
-                    main { }
-                    debug { }
-                }
-            }
-            
-            dependencies {
-                ${buildSections['subProjectCompileLines']}
-            }
-        """\
-
-        subProjectBuildFile << subBuildFileStr
-    }
-
-    def runGradleProject(Object buildParams) {
-        def results = [:]
-
-        gradleVersions.each { gradleVersion ->
-            buildArgumentSets[gradleVersion.key].each { buildArguments ->
-                if (buildParams['skipGradleVersion'] == gradleVersion.key)
-                    return // == "closure break"
-
-                if (testProjectDir != null)
-                    testProjectDir.delete()
-
-                def currentParams = defaultBuildParams + buildParams
-
-                createBuildFile(currentParams)
-                buildFileStr = buildFileStr.replace('com.android.tools.build:gradle:XX.XX.XX', gradleVersion.value)
-                buildFile = testProjectDir.newFile('build.gradle')
-                buildFile << buildFileStr
-
-                createSubProject(currentParams)
-
-                def result =
-                    GradleRunner.create()
-                        .withProjectDir(testProjectDir.root)
-                        .withArguments(buildArguments)
-                        .withPluginClasspath()
-                        .withGradleVersion(gradleVersion.key)
-                        .build()
-                results[gradleVersion.key] = result.output
-
-                println result.output
-            }
-        }
-
-        return results
+    def runGradleProject(params) {
+        GradleTestTemplate.runGradleProject(params)
     }
 
     def "OneSignal version 3_6_4"() {
@@ -348,16 +183,16 @@ class MainTest extends Specification {
     }
 
     def "Ensure flavors work on Gradle 3_3 and latest"() {
-        gradleVersions['3.3'] = 'com.android.tools.build:gradle:2.3.3'
+        GradleTestTemplate.gradleVersions['3.3'] = 'com.android.tools.build:gradle:2.3.3'
 
-        buildArgumentSets.remove('2.14.1')
+        GradleTestTemplate.buildArgumentSets.remove('2.14.1')
 
-        buildArgumentSets['3.3'] = [
+        GradleTestTemplate.buildArgumentSets['3.3'] = [
             ['dependencies', '--configuration', 'compile', '--info'],
             ['dependencies', '--configuration', '_sandboxDebugCompile', '--info']
         ]
 
-        buildArgumentSets['4.4'] = [
+        GradleTestTemplate.buildArgumentSets['4.4'] = [
             ['dependencies', '--configuration', 'compile', '--info'],
             ['dependencies', '--configuration', 'sandboxDebugCompileClasspath', '--info']
         ]
