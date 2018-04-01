@@ -163,7 +163,13 @@ class GradleProjectPlugin implements Plugin<Project> {
         def targetSdkVersion = 0
         project.android.applicationVariants.all { variant ->
             def mergedFlavor = variant.getMergedFlavor()
-            targetSdkVersion = mergedFlavor.targetSdkVersion.apiLevel
+            // Use targetSdkVersion unless null, fallback is minSdkVersion, 1 the static fallback
+            if (mergedFlavor.targetSdkVersion != null)
+                targetSdkVersion = mergedFlavor.targetSdkVersion.apiLevel
+            else if ( mergedFlavor.minSdkVersion != null)
+                targetSdkVersion = mergedFlavor.minSdkVersion.apiLevel
+            else
+                targetSdkVersion = 1
         }
 
         targetSdkVersion

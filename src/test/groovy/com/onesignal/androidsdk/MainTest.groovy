@@ -102,7 +102,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('OneSignalProjectPlugin: com.android.support:support-v4 overridden from \'+\' to \'26.+\'')
+            assert it.value.contains('com.android.support:support-v4 overridden from \'+\' to \'26.+\'')
         }
     }
 
@@ -224,6 +224,21 @@ class MainTest extends Specification {
             assert it.value.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.1.0 (*)')
             assert it.value.contains('--- com.android.support:appcompat-v7:25.0.0 -> 26.1.0')
             assert it.value.contains('--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
+        }
+    }
+
+    def "support missing targetSdkVersion"() {
+        // minSdkVersion should be used as a fallback
+        when:
+        def results = runGradleProject([
+            compileLines : "compile 'com.onesignal:OneSignal:3.6.4'",
+            skipTargetSdkVersion: true,
+            minSdkVersion: 26
+        ])
+
+        then:
+        results.each {
+            assert it.value.contains('+--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
         }
     }
 }
