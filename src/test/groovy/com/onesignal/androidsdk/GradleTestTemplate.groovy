@@ -14,7 +14,8 @@ class GradleTestTemplate {
 
     static def defaultBuildParams = [
         compileSdkVersion: 26,
-        targetSdkVersion: 26
+        targetSdkVersion: 26,
+        minSdkVersion: 15
     ]
 
     static def setup() {
@@ -84,11 +85,12 @@ class GradleTestTemplate {
                  defaultConfig {
                     applicationId 'com.app.example'
 
-                    minSdkVersion 15
-                    targetSdkVersion ${buildSections['targetSdkVersion']}
+                    minSdkVersion ${buildSections['minSdkVersion']}
                     versionCode 1
                     versionName '1.0'
                     multiDexEnabled true
+
+                    ${buildSections['defaultConfigExtras']}
                 }
                 
                 buildTypes {
@@ -125,8 +127,7 @@ class GradleTestTemplate {
                 compileSdkVersion ${buildSections['compileSdkVersion']}
                 buildToolsVersion '26.0.2'
                  defaultConfig {
-                    minSdkVersion 15
-                    targetSdkVersion ${buildSections['targetSdkVersion']}
+                    minSdkVersion ${buildSections['minSdkVersion']}
                 }
                 buildTypes {
                     main { }
@@ -152,6 +153,9 @@ class GradleTestTemplate {
                     testProjectDir.delete()
 
                 def currentParams = defaultBuildParams + buildParams
+
+                if (!buildParams['skipTargetSdkVersion'])
+                  currentParams['defaultConfigExtras'] = "targetSdkVersion ${currentParams['targetSdkVersion']}"
 
                 createBuildFile(currentParams)
                 buildFileStr = buildFileStr.replace('com.android.tools.build:gradle:XX.XX.XX', gradleVersion.value)
