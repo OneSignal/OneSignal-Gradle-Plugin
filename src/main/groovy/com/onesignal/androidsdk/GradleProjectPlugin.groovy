@@ -95,7 +95,7 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static void resolutionHooksForAndroidPluginV3() {
         project.afterEvaluate {
-            project.android.applicationVariants.all { variant ->
+            projectVariants().all { variant ->
                 // compileConfiguration is new in 3.0.0
                 if (!variant.hasProperty('compileConfiguration'))
                     return
@@ -143,7 +143,7 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static void doResolutionStrategyAndroidPluginV3(Object configuration) {
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            project.android.applicationVariants.all { variant ->
+            projectVariants().all { variant ->
                 doTargetSdkVersionAlign(details)
 
                 project.configurations.all { config ->
@@ -155,13 +155,21 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
+    // Get either applicationVariants or libraryVariants depending on project type
+    // returns BaseVariant
+    static Object projectVariants() {
+        if (project.android.hasProperty('applicationVariants'))
+            project.android.applicationVariants
+        else
+            project.android.libraryVariants
+    }
 
     // Each variant is created from this internal Android Gradle plugin method
     // private createTasksForFlavoredBuild(ProductFlavorData... flavorDataList) {
     // https://stackoverflow.com/questions/31461267/using-a-different-manifestplaceholder-for-each-build-variant
     static int getCurrentTargetSdkVersion() {
         def targetSdkVersion = 0
-        project.android.applicationVariants.all { variant ->
+        projectVariants().all { variant ->
             def mergedFlavor = variant.getMergedFlavor()
             // Use targetSdkVersion unless null, fallback is minSdkVersion, 1 the static fallback
             if (mergedFlavor.targetSdkVersion != null)
@@ -184,7 +192,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (!module)
             return
 
-        project.android.applicationVariants.all { variant ->
+        projectVariants().all { variant ->
             def curSdkVersion = getCurrentTargetSdkVersion()
 
             if (curSdkVersion == 0)

@@ -102,6 +102,13 @@ class GradleTestTemplate {
             
             dependencies {
                 ${buildSections['compileLines']}
+
+                ${
+                if (buildSections['subProjectCompileLines'] != null)
+                   "compile(project(':subProject'))"
+                else
+                    ''
+                }
             }
         """\
     }
@@ -121,6 +128,7 @@ class GradleTestTemplate {
 
     static def subProjectBuildDotGradle(buildSections) {
         """\
+            ${buildSections['libProjectExtras']}
             apply plugin: 'com.android.library'
 
             android {

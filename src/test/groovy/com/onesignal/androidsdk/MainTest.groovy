@@ -241,4 +241,23 @@ class MainTest extends Specification {
             assert it.value.contains('+--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
         }
     }
+
+    def "support library projects"() {
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: '2.14.1',
+            compileLines : "compile 'com.onesignal:OneSignal:3.6.4'",
+            subProjectCompileLines: """\
+                compile 'com.android.support:cardview-v7:[25.0.0, 26.0.0)'
+                compile 'com.android.support:support-v4:25.+'
+            """,
+            libProjectExtras: "apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'"
+        ])
+
+        then:
+        results.each {
+            assert it.value.contains('+--- com.android.support:cardview-v7:[25.0.0, 26.0.0) -> 26.0.0-beta2')
+            assert it.value.contains('--- com.android.support:support-v4:25.+ -> 26.0.0-beta2')
+        }
+    }
 }
