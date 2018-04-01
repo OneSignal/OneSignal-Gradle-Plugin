@@ -90,6 +90,8 @@ class GradleTestTemplate {
                     versionName '1.0'
                     multiDexEnabled true
 
+                    manifestPlaceholders = [onesignal_app_id: '', onesignal_google_project_number: '']
+
                     ${buildSections['defaultConfigExtras']}
                 }
                 

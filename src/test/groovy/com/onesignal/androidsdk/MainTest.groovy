@@ -260,4 +260,23 @@ class MainTest extends Specification {
             assert it.value.contains('--- com.android.support:support-v4:25.+ -> 26.0.0-beta2')
         }
     }
+
+    def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26 with build tasks"() {
+        GradleTestTemplate.buildArgumentSets['4.4'] = [
+            ['build', '--info'],
+        ]
+
+        when:
+        def results = runGradleProject([
+            compileLines : "compile 'com.onesignal:OneSignal:3.5.+'",
+            skipGradleVersion: '2.14.1'
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains("com.onesignal:OneSignal overridden from '3.5.+' to '3.6.3'")
+            assert it.value.contains("com.google.android.gms:play-services-gcm overridden from '[10.2.1,11.3.0)' to '11.2.+'")
+        }
+    }
 }

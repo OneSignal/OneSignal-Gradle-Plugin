@@ -212,6 +212,7 @@ class GradleProjectPlugin implements Plugin<Project> {
 
             if (newVersion != curVersion && newVersion != null) {
                 moduleVersionOverrides["${details.requested.group}:${details.requested.name}"] = newVersion
+                versionGroupAligns[details.requested.group] = [version: newVersion]
                 details.useVersion(newVersion)
             }
         }
