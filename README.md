@@ -13,7 +13,7 @@ buildscript {
     dependencies {
         // ...
         // OneSignal-Gradle-Plugin
-        classpath 'gradle.plugin.com.onesignal:onesignal-gradle-plugin:[0.8.1, 0.99.99]' 
+        classpath 'gradle.plugin.com.onesignal:onesignal-gradle-plugin:[0.8.2, 0.99.99]' 
     }
 }
 ```
