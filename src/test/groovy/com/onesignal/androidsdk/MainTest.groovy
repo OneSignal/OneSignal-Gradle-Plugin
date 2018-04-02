@@ -102,7 +102,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.android.support:support-v4 overridden from \'+\' to \'26.+\'')
+            assert it.value.contains('com.android.support:support-v4 overridden from \'+\' to \'27.+\'')
         }
     }
 
@@ -192,7 +192,7 @@ class MainTest extends Specification {
             ['dependencies', '--configuration', '_sandboxDebugCompile', '--info']
         ]
 
-        GradleTestTemplate.buildArgumentSets['4.4'] = [
+        GradleTestTemplate.buildArgumentSets['4.6'] = [
             ['dependencies', '--configuration', 'compile', '--info'],
             ['dependencies', '--configuration', 'sandboxDebugCompileClasspath', '--info']
         ]
@@ -233,7 +233,7 @@ class MainTest extends Specification {
         def results = runGradleProject([
             compileLines : "compile 'com.onesignal:OneSignal:3.6.4'",
             skipTargetSdkVersion: true,
-            minSdkVersion: 26
+            minSdkVersion: 27
         ])
 
         then:
@@ -262,7 +262,7 @@ class MainTest extends Specification {
     }
 
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26 with build tasks"() {
-        GradleTestTemplate.buildArgumentSets['4.4'] = [
+        GradleTestTemplate.buildArgumentSets['4.6'] = [
             ['build', '--info'],
         ]
 

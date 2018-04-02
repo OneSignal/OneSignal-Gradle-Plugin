@@ -24,7 +24,7 @@ apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'
 - Future: Other warnings and checks specific to OneSignal such as app_id and notification icons.
 
 ## Compatibility
-Compatible with Gradle 2.14.1+ and AGP (Android Gradle Plugin) 2.2.3+. Latest tested versions Gradle 4.4 and AGP 3.0.1.
+Compatible with Gradle 2.14.1+ and AGP (Android Gradle Plugin) 2.2.3+. Latest tested versions Gradle 4.6 and AGP 3.1.0.
 
 ## Change Log
 See this repository's [release tags](https://github.com/OneSignal/OneSignal-Gradle-Plugin/releases) for a complete change log.
