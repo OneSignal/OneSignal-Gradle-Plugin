@@ -13,15 +13,15 @@ class GradleTestTemplate {
     static def buildArgumentSets = [:]
 
     static def defaultBuildParams = [
-        compileSdkVersion: 26,
-        targetSdkVersion: 26,
+        compileSdkVersion: 27,
+        targetSdkVersion: 27,
         minSdkVersion: 15
     ]
 
     static def setup() {
         gradleVersions = [
             '2.14.1': 'com.android.tools.build:gradle:2.2.3',
-            '4.4': 'com.android.tools.build:gradle:3.0.1'
+            '4.6': 'com.android.tools.build:gradle:3.1.0'
         ]
 
         buildArgumentSets = [
@@ -29,7 +29,7 @@ class GradleTestTemplate {
                 ['dependencies', '--configuration', 'compile', '--info'],
                 ['dependencies', '--configuration', '_debugCompile', '--info']
             ],
-            '4.4': [
+            '4.6': [
                 // compile does not work on it's own for tests since we use variant.compileConfiguration
                 ['dependencies', '--configuration', 'compile', '--info'],
                 ['dependencies', '--configuration', 'debugCompileClasspath', '--info'] //  '--stacktrace'
@@ -81,7 +81,7 @@ class GradleTestTemplate {
 
             android {
                 compileSdkVersion ${buildSections['compileSdkVersion']}
-                buildToolsVersion '26.0.2'
+                buildToolsVersion '27.0.3'
                  defaultConfig {
                     applicationId 'com.app.example'
 
@@ -135,7 +135,7 @@ class GradleTestTemplate {
 
             android {
                 compileSdkVersion ${buildSections['compileSdkVersion']}
-                buildToolsVersion '26.0.2'
+                buildToolsVersion '27.0.3'
                  defaultConfig {
                     minSdkVersion ${buildSections['minSdkVersion']}
                 }

@@ -9,11 +9,12 @@ android:
             # https://github.com/travis-ci/travis-ci/issues/6193
             # Required to get the newest platform-tools.
     - platform-tools
-    - build-tools-26.0.2
+    - build-tools-27.0.3
     - android-26
   licenses:
     - '.+'
 before_script:
+    - yes | sdkmanager "platforms;android-27"
     - chmod +x gradlew
 script:
     - ./gradlew build
