@@ -44,6 +44,7 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionR
 
 class GradleProjectPlugin implements Plugin<Project> {
 
+    // Each of the groups below must have their own module versions aligned
     static final def VERSION_GROUP_ALIGNS = [
         // ### Google Play Services library
         'com.google.android.gms': [
@@ -62,17 +63,32 @@ class GradleProjectPlugin implements Plugin<Project> {
             'version': '0.0.0',
             'omitModules': ['multidex', 'multidex-instrumentation'],
 
-            // Can't use 26 of com.android.support when compileSdkVersion 25 is set
-            // The following error will be thrown if there is a mismatch here.
-            // "No resource found that matches the given name: attr 'android:keyboardNavigationCluster'"
+            // Android Support Library must be less than or equal to the compileSdkVersion
+            // Example: Can't use 26 of com.android.support when compileSdkVersion 25 is set
+            //    The following error will be thrown if the library is newer in this case:
+            //    "No resource found that matches the given name: attr 'android:keyboardNavigationCluster'"
             'compileSdkVersionAlign': true
+        ],
+
+        // Exists only for UPDATE_PARENT_ON_DEPENDENCY_UPGRADE
+        'com.onesignal': [
+            'version': '0.0.0'
         ]
     ]
 
-    static final def MINIMUM_MODULE_VERSIONS = [
+    // Update the following module versions to a compatible version for their target SDK
+    static final def MINIMUM_MODULE_VERSION_FOR_TARGET_SDK = [
         'com.onesignal:OneSignal': [
             targetSdkVersion: [
                 26: '3.6.3'
+            ]
+        ]
+    ]
+
+    static final def UPDATE_PARENT_ON_DEPENDENCY_UPGRADE = [
+        'com.android.support': [
+            27: [
+                'com.onesignal': '3.7.1'
             ]
         ]
     ]
@@ -81,6 +97,8 @@ class GradleProjectPlugin implements Plugin<Project> {
     static Project project
     static def moduleVersionOverrides
     static def moduleCopied
+
+    static def didUpdateOneSignalVersion
 
     @Override
     void apply(Project inProject) {
@@ -188,16 +206,14 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (existingOverrider)
             details.useVersion(existingOverrider)
 
-        def module = MINIMUM_MODULE_VERSIONS["${details.requested.group}:${details.requested.name}"]
+        def module = MINIMUM_MODULE_VERSION_FOR_TARGET_SDK["${details.requested.group}:${details.requested.name}"]
         if (!module)
             return
 
         projectVariants().all { variant ->
             def curSdkVersion = getCurrentTargetSdkVersion()
-
             if (curSdkVersion == 0)
                 return
-
 
             def curVersion = getVersionFromDependencyResolveDetails(details)
             def newVersion = null
@@ -275,9 +291,9 @@ class GradleProjectPlugin implements Plugin<Project> {
         "${details.requested.group}:${details.requested.name}"
     }
 
-    static int compareVersions(String version1, String version2) {
+    static int compareVersions(String inComing, String existing) {
         def versionComparator = new DefaultVersionComparator()
-        versionComparator.compare(new VersionInfo(version1), new VersionInfo(version2))
+        versionComparator.compare(new VersionInfo(inComing), new VersionInfo(existing))
     }
 
     static Object finalAlignmentRules() {
@@ -334,6 +350,8 @@ class GradleProjectPlugin implements Plugin<Project> {
             return
         moduleCopied[configuration.name] = true
 
+        didUpdateOneSignalVersion = false
+
         def configCopy = configuration.copy()
         forceCanBeResolved(configCopy)
 
@@ -348,10 +366,14 @@ class GradleProjectPlugin implements Plugin<Project> {
 
             def compareVersionResult = compareVersions(inComingVersion, curOverrideVersion)
             if (compareVersionResult > 0)
-                versionGroupAligns[details.requested.group]['version'] = inComingVersion
+                updateVersionGroupAligns(details.requested.group, inComingVersion)
         }
 
         triggerResolutionStrategy(configCopy)
+
+        // OneSignal version was changed, need to rerun to get it's dependencies
+        if (didUpdateOneSignalVersion)
+            generateHighestVersionsForGroups(configCopy)
     }
 
     static void triggerResolutionStrategy(Object configuration) {
@@ -360,6 +382,37 @@ class GradleProjectPlugin implements Plugin<Project> {
         try {
            configuration.resolvedConfiguration.resolvedArtifacts
         } catch (any) {}
+    }
+
+    static void updateParentOnDependencyUpgrade(String dependencyGroup, String dependencyVersion) {
+        def dependencyGroupEntry = UPDATE_PARENT_ON_DEPENDENCY_UPGRADE[dependencyGroup]
+        if (dependencyGroupEntry == null)
+            return
+
+        dependencyGroupEntry.each { key, value ->
+            if (compareVersions(dependencyVersion, "${key}.0.0}") < 0)
+                return // == continue in each closure
+
+            value.each { parentGroupEntry ->
+                def parentGroupVersionEntry = versionGroupAligns[parentGroupEntry.key]
+                if (parentGroupVersionEntry != null) {
+                    def compareVersionResult = compareVersions(parentGroupEntry.value, parentGroupVersionEntry['version'])
+                    if (compareVersionResult > 0) {
+                        didUpdateOneSignalVersion = true
+                        versionGroupAligns[parentGroupEntry.key]['version'] = parentGroupEntry.value
+                    }
+                }
+                else {
+                    didUpdateOneSignalVersion = true
+                    versionGroupAligns[parentGroupEntry.key] = [version: parentGroupEntry.value]
+                }
+            }
+        }
+    }
+
+    static void updateVersionGroupAligns(String group, String version) {
+        updateParentOnDependencyUpgrade(group, version)
+        versionGroupAligns[group]['version'] = version
     }
 
     static String getVersionFromDependencyResolveDetails(DependencyResolveDetails details) {

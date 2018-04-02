@@ -29,11 +29,9 @@ class MainTest extends Specification {
     }
 
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26"() {
-        def compileLines = "compile 'com.onesignal:OneSignal:3.5.+'"
-
         when:
         def results = runGradleProject([
-            compileLines : compileLines,
+            compileLines : "compile 'com.onesignal:OneSignal:3.5.+'",
             skipGradleVersion: '2.14.1'
         ])
 
@@ -42,6 +40,25 @@ class MainTest extends Specification {
         results.each {
             assert it.value.contains('--- com.onesignal:OneSignal:3.5.+ -> 3.6.3')
             assert it.value.contains(' +--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
+        }
+    }
+
+    def "Upgrade to compatible OneSignal SDK when using Android Support library rev 27"() {
+        when:
+        def results = runGradleProject([
+            compileLines : """\
+                compile 'com.onesignal:OneSignal:3.6.+'
+                compile 'com.android.support:support-v4:27.0.0'
+            """,
+            skipGradleVersion: '2.14.1'
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('--- com.onesignal:OneSignal:3.6.+ -> 3.7.1')
+            // Note: If you get 11.2.2 instead of 11.6.2 then this plugin didn't do a 2nd pass as 3.7.1
+            assert it.value.contains(' +--- com.google.android.gms:play-services-gcm:[10.2.1, 11.7.0) -> 11.6.2')
         }
     }
 
