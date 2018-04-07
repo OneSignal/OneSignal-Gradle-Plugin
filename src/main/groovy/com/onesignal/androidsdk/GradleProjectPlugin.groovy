@@ -10,6 +10,7 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.ExactVer
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.LatestVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.SubVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionRangeSelector
+import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionSelector
 
 // This Gradle plugin automatically fixes or notifies developer of requires changes to make the
 //    OneSignal Android SDK compatible with the app's project
@@ -63,10 +64,13 @@ class GradleProjectPlugin implements Plugin<Project> {
             'version': '0.0.0',
             'omitModules': ['multidex', 'multidex-instrumentation'],
 
-            // Android Support Library must be less than or equal to the compileSdkVersion
-            // Example: Can't use 26 of com.android.support when compileSdkVersion 25 is set
-            //    The following error will be thrown if the library is newer in this case:
+            // Android Support Library can NOT be greater than compileSdkVersion
+            // Example: Can't use com.android.support 26.+ when using compileSdkVersion 25
+            //    The following error will be thrown in this case:
             //    "No resource found that matches the given name: attr 'android:keyboardNavigationCluster'"
+            // This doesn't enforce increasing the support library version
+            // Google does warn in Android Studio if this isn't aligned
+            //     so we might want to do the same in the future
             'compileSdkVersionAlign': true
         ],
 
@@ -215,15 +219,13 @@ class GradleProjectPlugin implements Plugin<Project> {
             if (curSdkVersion == 0)
                 return
 
-            def curVersion = getVersionFromDependencyResolveDetails(details)
+            def curVersion = details.requested.version
             def newVersion = null
             module['targetSdkVersion'].each { key, value ->
                 if (curSdkVersion < key)
                     return
 
-                def compareVersionResult = compareVersions(value, newVersion ?: curVersion)
-                if (compareVersionResult > 0)
-                    newVersion = value
+                newVersion = acceptedOrIntersectVersion(value, newVersion ?: curVersion)
             }
 
             if (newVersion != curVersion && newVersion != null) {
@@ -242,14 +244,18 @@ class GradleProjectPlugin implements Plugin<Project> {
         overrideVersion(details, toVersion)
     }
 
-    static void compileSdkVersionAlign(Project project, def versionOverride) {
+    static void compileSdkVersionAlign(versionOverride) {
         if (!versionOverride['compileSdkVersionAlign'])
             return
 
-        def compileSdkVersion = project.android.compileSdkVersion.split('-')[1].toInteger()
-        def libraryGroupVersion = versionOverride['version'].split('\\.').first().toInteger()
-        if (compileSdkVersion < libraryGroupVersion)
-            versionOverride['version'] = "${compileSdkVersion}.+"
+        def compileSdkVersion = project.android.compileSdkVersion.split('-')[1]
+
+        // Will only decrease version, and only when needed
+        // TODO:2: Need to rerun alignment to enforce UPDATE_PARENT_ON_DEPENDENCY_UPGRADE
+        versionOverride['version'] = lowerMaxVersion(
+            versionOverride['version'],
+            "${compileSdkVersion}.+"
+        )
     }
 
     static void overrideVersion(DependencyResolveDetails details, String resolvedVersion) {
@@ -259,8 +265,8 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (details.requested.version == resolvedVersion)
             return
 
-        details.useVersion(resolvedVersion)
         logModuleOverride(details, resolvedVersion)
+        details.useVersion(resolvedVersion)
     }
 
     static void logModuleOverride(DependencyResolveDetails details, String resolvedVersion) {
@@ -287,10 +293,9 @@ class GradleProjectPlugin implements Plugin<Project> {
         compareVersions(version1, version2) > 0 ? version1 : version2
     }
 
-    static String moduleGroupAndName(details) {
-        "${details.requested.group}:${details.requested.name}"
-    }
-
+    // Returns 1 if inComing is newer than existing
+    // Returns 0 if both version are the same
+    // Returns -1 inComing is older than existing
     static int compareVersions(String inComing, String existing) {
         def versionComparator = new DefaultVersionComparator()
         versionComparator.compare(new VersionInfo(inComing), new VersionInfo(existing))
@@ -301,34 +306,22 @@ class GradleProjectPlugin implements Plugin<Project> {
 
         def finalVersionGroupAligns = InternalUtils.deepcopy(versionGroupAligns)
         alignAcrossGroups(finalVersionGroupAligns)
-        updateMockVersionsIntoGradleVersions(finalVersionGroupAligns)
+        finalVersionGroupAligns.each { group ->
+            compileSdkVersionAlign(group.value)
+        }
 
         project.logger.debug("OneSignalProjectPlugin: FINAL ALIGN PART 2: ${finalVersionGroupAligns}")
         finalVersionGroupAligns
     }
 
     static void alignAcrossGroups(def versionGroupAligns) {
-        def highestVersion = getHighestVersion(
+        def highestVersion = acceptedOrIntersectVersion(
             versionGroupAligns['com.google.android.gms']['version'],
             versionGroupAligns['com.google.firebase']['version']
         )
 
         versionGroupAligns['com.google.android.gms']['version'] = highestVersion
         versionGroupAligns['com.google.firebase']['version'] = highestVersion
-    }
-
-    static void updateMockVersionsIntoGradleVersions(def finalVersionGroupAligns) {
-        finalVersionGroupAligns.each { group ->
-            compileSdkVersionAlign(project, group.value)
-
-            String version = group.value['version']
-
-            // Mock latest into Gradle latest
-            if (version == '9999.9999.9999')
-                version = '+'
-
-            group.value['version'] = version.replace('9999', '+').replace(".+.+", ".+")
-        }
     }
 
     // project.android.@plugin - This looks to be on the AppExtension class however this didn't work
@@ -362,18 +355,28 @@ class GradleProjectPlugin implements Plugin<Project> {
                 return
 
             def curOverrideVersion = versionGroupAligns[details.requested.group]['version']
-            def inComingVersion = getVersionFromDependencyResolveDetails(details)
+            def newVersion = acceptedOrIntersectVersion(details.requested.version, curOverrideVersion)
 
-            def compareVersionResult = compareVersions(inComingVersion, curOverrideVersion)
-            if (compareVersionResult > 0)
-                updateVersionGroupAligns(details.requested.group, inComingVersion)
+            if (details.requested.group == 'com.onesignal')
+                project.logger.info("OneSignal: curOverrideVersion: ${curOverrideVersion} -> ${newVersion}")
+
+            if (newVersion != curOverrideVersion)
+                updateVersionGroupAligns(details.requested.group, newVersion)
         }
 
         triggerResolutionStrategy(configCopy)
 
         // OneSignal version was changed, need to rerun to get it's dependencies
-        if (didUpdateOneSignalVersion)
+        if (didUpdateOneSignalVersion) {
+            versionGroupAligns.each { group, settings ->
+                if (group != 'com.onesignal')
+                    settings['version'] = '0.0.0'
+            }
+
+            project.logger.info("didUpdateOneSignalVersion changed, doing a 2nd pass")
             generateHighestVersionsForGroups(configCopy)
+        }
+
     }
 
     static void triggerResolutionStrategy(Object configuration) {
@@ -411,57 +414,118 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void updateVersionGroupAligns(String group, String version) {
+        if (group == 'com.onesignal')
+            project.logger.info("OneSignal: Setting version in versionGroupAligns to: ${version}")
         updateParentOnDependencyUpgrade(group, version)
         versionGroupAligns[group]['version'] = version
     }
 
-    static String getVersionFromDependencyResolveDetails(DependencyResolveDetails details) {
-        def defaultVersionComparator = new DefaultVersionComparator()
-        def defaultVersionSelectorScheme  = new DefaultVersionSelectorScheme(defaultVersionComparator)
-        def parsedVersion = defaultVersionSelectorScheme.parseSelector(details.requested.version)
+    // Parses String version and turns it into a VersionSelector
+    // Only returns ExactVersionSelector or VersionRangeSelector for easier handling:
+    //   * Turns SubVersionSelector and LatestVersionSelector into ExactVersionSelector
+    //   * Turns single range entries of [1.0.0] into ExactVersionSelector
+    static VersionSelector parseSelector(String version) {
+        def versionComparator = new DefaultVersionComparator()
+        def versionSelectorScheme  = new DefaultVersionSelectorScheme(versionComparator)
+        def versionSelector = versionSelectorScheme.parseSelector(version)
 
-        if (parsedVersion instanceof ExactVersionSelector)
-            return details.requested.version
-        else if (parsedVersion instanceof VersionRangeSelector)
-            return getHighestVersionFromVersionRangeSelector(parsedVersion)
-        else if (parsedVersion instanceof SubVersionSelector)
-            return details.requested.version.replace('+', '9999')
-        else if (parsedVersion instanceof LatestVersionSelector)
-            return '9999.9999.9999'
-        else
-            project.logger.error("OneSignalProjectPlugin: Unkown VersionSelector: ${parsedVersion}")
+        // Turns VersionRangeSelector with a single value into ExactVersionSelector Example: [1.0.0]
+        if (versionSelector instanceof VersionRangeSelector) {
+            if (versionSelector.lowerBound == versionSelector.upperBound &&
+                versionSelector.lowerInclusive && versionSelector.upperInclusive)
+                return versionSelectorScheme.parseSelector(versionSelector.upperBound)
+        }
+        if (versionSelector instanceof SubVersionSelector)
+            return versionSelectorScheme.parseSelector(version.replace('+', '9999'))
+
+        if (versionSelector instanceof LatestVersionSelector)
+            return new ExactVersionSelector('9999.9999.9999')
+
+        versionSelector
     }
 
-    static final int MAJOR_INDEX = 0
-    static final int MINOR_INDEX = 1
-    static final int PATCH_INDEX = 2
+    static VersionSelector changeLowerBoundOfSelector(VersionRangeSelector selector, String newLower) {
+        def parts = selector.getSelector().split(',')
+        parts[0] = parts[0].replace(selector.lowerBound, newLower)
+        parts[0] = parts[0].replace('(', '[').replace(')', '[').replace(']', '[')
+        parseSelector(parts.join(','))
+    }
 
-    static String getHighestVersionFromVersionRangeSelector(VersionRangeSelector parsedVersion) {
-        if (parsedVersion.upperInclusive)
-            return parsedVersion.upperBound
+    static VersionSelector changeUpperBoundOfSelector(VersionRangeSelector selector, String newUpper) {
+        def parts = selector.getSelector().split(',')
+        parts[1] = parts[1].replace(selector.upperBound, newUpper)
+        parts[1] = parts[1].replace(')', ']').replace('(', ']').replace('[', ']')
+        parseSelector(parts.join(','))
+    }
 
-        // If upper limit of range is exclusive subtract 1 from the version
+    // Returns the intersection range of two versions
+    // If no over lap the higher of the two will be returned
+    static VersionRangeSelector mergedIntersectOrHigher(VersionRangeSelector inComing, VersionRangeSelector existing) {
+        def intersectResult = inComing.intersect(existing)
+        if (intersectResult != null)
+            return intersectResult
 
-        def parts = parsedVersion.upperBound.split('\\.')
+        if (compareVersions(inComing.upperBound, existing.upperBound) > 0)
+            return inComing
+        existing
+    }
 
-        if (parts[PATCH_INDEX] != '0') {
-            def patchVersion = parts[PATCH_INDEX].toInteger() - 1
-            parts[PATCH_INDEX] = patchVersion.toString()
+    // Will return the newer of the two versions
+    // If either or both versions include ranges, the range will be adjusted
+    //   This includes narrowing or expanding ranges when newer
+    static String acceptedOrIntersectVersion(String inComingStr, String existingStr) {
+        def inComing = parseSelector(inComingStr)
+        def existing = parseSelector(existingStr)
+
+        def bothRangeSelectors = inComing instanceof VersionRangeSelector &&
+                                 existing instanceof VersionRangeSelector
+        if (bothRangeSelectors)
+            return mergedIntersectOrHigher(inComing, existing).selector
+
+        def bothExactSelectors = inComing instanceof ExactVersionSelector &&
+                                 existing instanceof ExactVersionSelector
+        if (bothExactSelectors) {
+            if (compareVersions(inComing.selector, existing.selector) > 0)
+                return inComingStr
+            else
+                return existingStr
+        }
+
+        // At this point we know either inComing or existing is a VersionRangeSelector type
+        if (inComing instanceof VersionRangeSelector) {
+            if (inComing.accept(existing.selector))
+                return changeLowerBoundOfSelector(inComing, existingStr).selector
+            else if (compareVersions(inComing.lowerBound, existingStr) > 0)
+                return inComingStr
+            else
+                return changeUpperBoundOfSelector(inComing, existingStr).selector
         }
         else {
-            parts[PATCH_INDEX] = '9999'
-
-            def minorVersion = parts[MINOR_INDEX].toInteger() - 1
-            if (minorVersion == -1) {
-                parts[MINOR_INDEX] = '9999'
-
-                def majorVersion = parts[MAJOR_INDEX].toInteger() - 1
-                parts[MAJOR_INDEX] = majorVersion.toString()
-            }
+            if (existing.accept(inComing.selector))
+                return changeLowerBoundOfSelector(existing, inComingStr).selector
+            else if (compareVersions(inComingStr, existing.upperBound) > 0)
+                return changeUpperBoundOfSelector(existing, inComingStr).selector
             else
-                parts[MINOR_INDEX] = minorVersion.toString()
+                return existingStr
+        }
+    }
+
+    // inComingStr can be any type of version
+    // maxStr must be ExactVersionSelector or SubVersionSelector
+    static String lowerMaxVersion(String currentStr, String maxStr) {
+        def current = parseSelector(currentStr)
+        def max = parseSelector(maxStr)
+
+        if (current instanceof ExactVersionSelector) {
+            if (compareVersions(max.selector, current.selector) > 0)
+                return currentStr
+            else
+                return maxStr
         }
 
-        parts.join('.')
+        if (compareVersions(max.selector, current.upperBound) > 0)
+            return currentStr
+        return maxStr
     }
+
 }
