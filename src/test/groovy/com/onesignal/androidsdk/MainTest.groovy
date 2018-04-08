@@ -77,6 +77,86 @@ class MainTest extends Specification {
         }
     }
 
+    def "GMS pining when in version range - flat project"() {
+        def compileLines = """\
+            compile 'com.onesignal:OneSignal:3.8.3'
+            compile 'com.google.android.gms:play-services-base:11.4.0'
+        """
+
+        when:
+        def results = runGradleProject([compileLines : compileLines])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.android.gms:play-services-gcm:[10.2.1, 12.1.0) -> 11.4.0')
+        }
+    }
+
+
+    def "GMS pining when in version range - OneSignal in sub project"() {
+        def compileLines = """\
+            compile(project(path: 'subProject'))
+            compile 'com.google.android.gms:play-services-base:11.4.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            compileLines : compileLines,
+            subProjectCompileLines: "compile 'com.onesignal:OneSignal:3.8.3'"
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.android.gms:play-services-gcm:[10.2.1, 12.1.0) -> 11.4.0')
+        }
+    }
+
+    def "GMS pining when in version range - GMS in sub project - Gradle 2_14_1"() {
+        def compileLines = """\
+            compile(project(path: 'subProject'))
+            compile 'com.onesignal:OneSignal:3.8.3'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: '4.6',
+            compileLines : compileLines,
+            subProjectCompileLines: "compile 'com.google.android.gms:play-services-gcm:11.4.0'"
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.android.gms:play-services-gcm:[10.2.1, 12.1.0) -> 11.4.0')
+        }
+    }
+
+    // TODO: This test asserts an expected acceptable outcome, the best outcome is noted below
+    //       It would great to this pining working as this is going to be a common case
+    //       If anther SDK pins GMS to a specific version that is also in the
+    //          OneSignal SDK's range it should be respected for best chance of compatibility
+    def "GMS pining when in version range - GMS in sub project - Gradle 4_6"() {
+        def compileLines = """\
+            compile(project(path: 'subProject'))
+            compile 'com.onesignal:OneSignal:3.8.3'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: '2.14.1',
+            compileLines : compileLines,
+            subProjectCompileLines: "compile 'com.google.android.gms:play-services-gcm:11.4.0'"
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            // NOTE: This assert is the known behavior but should be "-> 11.4.0" instead
+            assert it.value.contains('com.google.android.gms:play-services-gcm:[10.2.1, 12.1.0) -> 12.0.1')
+        }
+    }
 
     // Helper to test both directions of inComing and existing versions
     static assertAcceptedOrIntersectVersion(String inComingStr, String existingStr, String expected) {
@@ -96,12 +176,14 @@ class MainTest extends Specification {
         assertAcceptedOrIntersectVersion('1.0.+', '2.0.+', '2.0.+')
         assertAcceptedOrIntersectVersion('1.+', '1.0.+', '1.+')
 
-        // # Version Range with Exact versions
-        // ## Between range = Narrowing Lower
-        assertAcceptedOrIntersectVersion('1.5.0', '[1.0.0, 1.99.99]', '[1.5.0, 1.99.99]')
-        // ## Above range = Expand Upper
-        assertAcceptedOrIntersectVersion('3.0.0', '[1.0.0, 1.99.99]', '[1.0.0, 3.0.0]')
-        // ## Below range = Keep range
+        // # Version Range & Exact versions = Use exact if in or above range
+        // ## Between range = Narrowing Upper
+        assertAcceptedOrIntersectVersion('1.5.0', '[1.0.0, 1.99.99]', '1.5.0')
+        // ## Above range = Lock to newer exact version
+        assertAcceptedOrIntersectVersion('3.0.0', '[1.0.0, 1.99.99]', '3.0.0')
+        // ## Below range = Keep range. Future: Could lock to lowest number in range but;
+//               A. Gradle 4.6(Latest) and older just keeps the range as is
+//               B. Can't do this with exclusive lowerBound without knowing the next version candidate
         assertAcceptedOrIntersectVersion('0.5.0', '[1.0.0, 1.99.99]', '[1.0.0, 1.99.99]')
         // ## At range, making upper and lower the same - Exact version
         assertAcceptedOrIntersectVersion('2.0.0', '[1.0.0, 2.0.0]', '2.0.0')
@@ -124,21 +206,21 @@ class MainTest extends Specification {
         assertAcceptedOrIntersectVersion('(1.0.0, 1.99.99)', '[1.5.0, 1.6.0)', '[1.5.0,1.6.0[')
 
         // # Latest and Version Ranges
-        // ## Plus at range = Replace lower
-        assertAcceptedOrIntersectVersion('1.+', '[1.0.0, 2.99.99)', '[1.+, 2.99.99)')
+        // ## Plus at range = Lock to lower 1.+
+        assertAcceptedOrIntersectVersion('1.+', '[1.0.0, 2.99.99)', '1.+')
         // ## Plus below range = Keep range - Same as Exact
         assertAcceptedOrIntersectVersion('1.+', '[2.0.0, 2.99.99)', '[2.0.0, 2.99.99)')
-        // ## Plus above range = Expand upper - Same as Exact
-        assertAcceptedOrIntersectVersion('3.0.+', '[1.0.0, 1.99.99)', '[1.0.0, 3.0.+]')
-        // ## Plus in range = Narrow lower - Same as Exact
-        assertAcceptedOrIntersectVersion('1.5.+', '[1.0.0, 1.99.99)', '[1.5.+, 1.99.99)')
+        // ## Plus above range = Lock to newer version - Same as Exact
+        assertAcceptedOrIntersectVersion('3.0.+', '[1.0.0, 1.99.99)', '3.0.+')
+        // ## Plus in range = Lock to lower 1.5.+
+        assertAcceptedOrIntersectVersion('1.5.+', '[1.0.0, 1.99.99)', '1.5.+')
 
 
         assertAcceptedOrIntersectVersion('[26.0.0, 27.1.0)', '25.+', '[26.0.0, 27.1.0)')
     }
 
 
-      def "GradleProjectPlugin test lowerMaxVersion"() {
+    def "GradleProjectPlugin test lowerMaxVersion"() {
           // Used to
           given:
           assert GradleProjectPlugin.lowerMaxVersion("[26.0.0, 27.1.0)", "27.+") == '[26.0.0, 27.1.0)'
@@ -147,8 +229,8 @@ class MainTest extends Specification {
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26"() {
         when:
         def results = runGradleProject([
-                compileLines : "compile 'com.onesignal:OneSignal:3.5.+'",
-                skipGradleVersion: '2.14.1'
+            compileLines : "compile 'com.onesignal:OneSignal:3.5.+'",
+            skipGradleVersion: '2.14.1' // This check requires AGP 3.0.1+ which requires Gradle 4.1+
         ])
 
         then:
@@ -172,9 +254,9 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains('--- com.onesignal:OneSignal:3.6.+ -> 3.7.1')
-            // Note: If you get 11.2.2 instead of 11.6.2 then this plugin didn't do a 2nd pass as 3.7.1
-            assert it.value.contains(' +--- com.google.android.gms:play-services-gcm:[10.2.1, 11.7.0) -> 11.6.2')
+            assert it.value.contains('--- com.onesignal:OneSignal:3.6.+ -> 3.7.0')
+            // Note: If you get 11.2.2 instead of 11.6.2 then this plugin didn't do a 2nd pass as 3.7.0
+            assert it.value.contains(' +--- com.google.android.gms:play-services-gcm:[10.2.1, 11.6.99] -> 11.6.2')
         }
     }
 
@@ -190,7 +272,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('+--- com.android.support:appcompat-v7:25.0.0 -> 26.1.0')
+            assert it.value.contains('+--- com.android.support:appcompat-v7:25.0.0 -> 26.0.0')
         }
     }
 
@@ -205,9 +287,10 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            // TODO: Since we are including 11.8.0 it should be drop to [10.2.1, 11.8.0]????
-            assert it.value.contains('com.google.android.gms:play-services-gcm:[10.2.1, 12.1.0) -> 12.0.1')
-            assert it.value.contains('com.google.android.gms:play-services-games:11.8.0 -> 12.0.1')
+            // Allow project's com.google.android.gms version limit the range of OneSignal's dependencies
+            assert it.value.contains('com.google.android.gms:play-services-gcm:[10.2.1, 12.1.0) -> 11.8.0')
+            // No override
+            assert it.value.contains('com.google.android.gms:play-services-games:11.8.0')
         }
     }
 
@@ -333,9 +416,9 @@ class MainTest extends Specification {
         results.each {
             assert it.value.contains('+--- com.google.android.gms:play-services-gcm:[10.2.1,11.3.0) -> 11.2.2')
             assert it.value.contains('+--- com.google.android.gms:play-services-location:[10.2.1,11.3.0) -> 11.2.2')
-            assert it.value.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.1.0 (*)')
-            assert it.value.contains('+--- com.android.support:appcompat-v7:25.0.0 -> 26.1.0')
-            assert it.value.contains('\\--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.1.0')
+            assert it.value.contains('+--- com.android.support:support-v4:[26.0.0,26.2.0) -> 26.0.0')
+            assert it.value.contains('+--- com.android.support:appcompat-v7:25.0.0 -> 26.0.0')
+            assert it.value.contains('\\--- com.android.support:customtabs:[26.0.0,26.2.0) -> 26.0.0')
         }
     }
 
@@ -419,6 +502,9 @@ class MainTest extends Specification {
         }
     }
 
+    // Note: Slow 20 second test, this is doing a full build
+    //   This is needed as we are making sure compile and runtime versions are not being miss aligned
+    //   Asserts are not needed for this as Gradle or AGP fails to build when this happens
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26 with build tasks"() {
         GradleTestTemplate.buildArgumentSets['4.6'] = [
             ['build', '--info']
@@ -434,7 +520,9 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
         results.each {
             assert it.value.contains("com.onesignal:OneSignal overridden from '3.5.+' to '3.6.3'")
-            assert it.value.contains("com.android.support:support-v4 overridden from '25.2.0' to '[26.1.0,26.2.0['")
+            // Could be '[26.1.0,26.2.0[' but I believe inner dependencies of com.android.support:support-v4
+            //   are causing it to be locked to 26.1.0 instead. OK in this case but breaks some of the rules
+            assert it.value.contains("com.android.support:support-v4 overridden from '25.2.0' to '26.1.0'")
         }
     }
 }
