@@ -3,6 +3,7 @@ package com.onesignal.androidsdk
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.DependencyResolveDetails
+import org.gradle.api.artifacts.ResolvedConfiguration
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.VersionInfo
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionComparator
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionSelectorScheme
@@ -92,7 +93,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     static final def UPDATE_PARENT_ON_DEPENDENCY_UPGRADE = [
         'com.android.support': [
             27: [
-                'com.onesignal': '3.7.1'
+                'com.onesignal': '3.7.0'
             ]
         ]
     ]
@@ -104,6 +105,9 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static def didUpdateOneSignalVersion
 
+    // TODO: MUSTS BEFORE next release 0.8.3+
+    //   TODO: 1. Compat for VersionRangeSelector.intersect for Gradle 2.14.1 to 4.2
+    //   TODO: 2. Ensure VersionRangeSelector.accept works
     @Override
     void apply(Project inProject) {
         project = inProject
@@ -206,7 +210,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void doTargetSdkVersionAlign(DependencyResolveDetails details) {
-        def existingOverrider = moduleVersionOverrides["${details.requested.group}:${details.requested.name}"]
+        String existingOverrider = moduleVersionOverrides["${details.requested.group}:${details.requested.name}"]
         if (existingOverrider)
             details.useVersion(existingOverrider)
 
@@ -220,15 +224,16 @@ class GradleProjectPlugin implements Plugin<Project> {
                 return
 
             def curVersion = details.requested.version
-            def newVersion = null
+            String newVersion = null
             module['targetSdkVersion'].each { key, value ->
                 if (curSdkVersion < key)
                     return
 
-                newVersion = acceptedOrIntersectVersion(value, newVersion ?: curVersion)
+                newVersion = acceptedOrIntersectVersion(value as String, newVersion ?: curVersion)
             }
 
-            if (newVersion != curVersion && newVersion != null) {
+            if (newVersion != null && newVersion != curVersion) {
+                project.logger.info("Changing OneSignal for TargetSdkVersion. ${curVersion} -> ${newVersion}")
                 moduleVersionOverrides["${details.requested.group}:${details.requested.name}"] = newVersion
                 versionGroupAligns[details.requested.group] = [version: newVersion]
                 details.useVersion(newVersion)
@@ -240,7 +245,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (!inGroupAlignList(details))
             return
 
-        def toVersion = finalAlignmentRules()[details.requested.group]['version']
+        String toVersion = finalAlignmentRules()[details.requested.group]['version']
         overrideVersion(details, toVersion)
     }
 
@@ -253,7 +258,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         // Will only decrease version, and only when needed
         // TODO:2: Need to rerun alignment to enforce UPDATE_PARENT_ON_DEPENDENCY_UPGRADE
         versionOverride['version'] = lowerMaxVersion(
-            versionOverride['version'],
+            versionOverride['version'] as String,
             "${compileSdkVersion}.+"
         )
     }
@@ -316,8 +321,8 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static void alignAcrossGroups(def versionGroupAligns) {
         def highestVersion = acceptedOrIntersectVersion(
-            versionGroupAligns['com.google.android.gms']['version'],
-            versionGroupAligns['com.google.firebase']['version']
+            versionGroupAligns['com.google.android.gms']['version'] as String,
+            versionGroupAligns['com.google.firebase']['version'] as String
         )
 
         versionGroupAligns['com.google.android.gms']['version'] = highestVersion
@@ -354,7 +359,7 @@ class GradleProjectPlugin implements Plugin<Project> {
             if (!inGroupAlignList(details))
                 return
 
-            def curOverrideVersion = versionGroupAligns[details.requested.group]['version']
+            String curOverrideVersion = versionGroupAligns[details.requested.group]['version']
             def newVersion = acceptedOrIntersectVersion(details.requested.version, curOverrideVersion)
 
             if (details.requested.group == 'com.onesignal')
@@ -376,15 +381,35 @@ class GradleProjectPlugin implements Plugin<Project> {
             project.logger.info("didUpdateOneSignalVersion changed, doing a 2nd pass")
             generateHighestVersionsForGroups(configCopy)
         }
-
     }
 
-    static void triggerResolutionStrategy(Object configuration) {
+    static void triggerResolutionStrategy(configuration) {
         // Will throw on 'compile' and 'implementation' tasks.
         // Checking for configuration.name == 'compile' || 'implementation' skips to much however
         try {
-           configuration.resolvedConfiguration.resolvedArtifacts
+            configuration.resolvedConfiguration.resolvedArtifacts
+           // printCustomDependencyTree(configuration)
         } catch (any) {}
+    }
+
+    // resolvedConfiguration.firstLevelModuleDependencies could be used to get a better result for the following test:
+    //    "GMS pining when in version range - GMS in sub project"
+
+    // As a possible fix for one depth but didn't have any effect on this test
+    //    // sortArtifacts Gradle 3.5+
+    //    configCopy.resolutionStrategy {
+    //        it.sortArtifacts(ResolutionStrategy.SortOrder.CONSUMER_FIRST) // Or DEPENDENCY_FIRST
+    //        it.eachDependency { DependencyResolveDetails details ->
+    static void printCustomDependencyTree(configuration) {
+        ResolvedConfiguration resolvedConfiguration = configuration.resolvedConfiguration
+
+        project.logger.info("printCustomDependencyTree: ${configuration}")
+        resolvedConfiguration.firstLevelModuleDependencies.each { resolvedDep ->
+            project.logger.info("+ ${resolvedDep}")
+            resolvedDep.children.each { childResolvedDep ->
+                project.logger.info("|- ${childResolvedDep}")
+            }
+        }
     }
 
     static void updateParentOnDependencyUpgrade(String dependencyGroup, String dependencyVersion) {
@@ -393,14 +418,17 @@ class GradleProjectPlugin implements Plugin<Project> {
             return
 
         dependencyGroupEntry.each { key, value ->
-            if (compareVersions(dependencyVersion, "${key}.0.0}") < 0)
+            if (!isVersionInOrLower(dependencyVersion, new ExactVersionSelector("${key}.0.0}")))
                 return // == continue in each closure
 
             value.each { parentGroupEntry ->
                 def parentGroupVersionEntry = versionGroupAligns[parentGroupEntry.key]
                 if (parentGroupVersionEntry != null) {
-                    def compareVersionResult = compareVersions(parentGroupEntry.value, parentGroupVersionEntry['version'])
-                    if (compareVersionResult > 0) {
+                    def compareVersionResult = acceptedOrIntersectVersion(
+                        parentGroupEntry.value,
+                        parentGroupVersionEntry['version'] as String
+                    )
+                    if (compareVersionResult != parentGroupVersionEntry['version']) {
                         didUpdateOneSignalVersion = true
                         versionGroupAligns[parentGroupEntry.key]['version'] = parentGroupEntry.value
                     }
@@ -444,20 +472,6 @@ class GradleProjectPlugin implements Plugin<Project> {
         versionSelector
     }
 
-    static VersionSelector changeLowerBoundOfSelector(VersionRangeSelector selector, String newLower) {
-        def parts = selector.getSelector().split(',')
-        parts[0] = parts[0].replace(selector.lowerBound, newLower)
-        parts[0] = parts[0].replace('(', '[').replace(')', '[').replace(']', '[')
-        parseSelector(parts.join(','))
-    }
-
-    static VersionSelector changeUpperBoundOfSelector(VersionRangeSelector selector, String newUpper) {
-        def parts = selector.getSelector().split(',')
-        parts[1] = parts[1].replace(selector.upperBound, newUpper)
-        parts[1] = parts[1].replace(')', ']').replace('(', ']').replace('[', ']')
-        parseSelector(parts.join(','))
-    }
-
     // Returns the intersection range of two versions
     // If no over lap the higher of the two will be returned
     static VersionRangeSelector mergedIntersectOrHigher(VersionRangeSelector inComing, VersionRangeSelector existing) {
@@ -470,9 +484,11 @@ class GradleProjectPlugin implements Plugin<Project> {
         existing
     }
 
-    // Will return the newer of the two versions
-    // If either or both versions include ranges, the range will be adjusted
-    //   This includes narrowing or expanding ranges when newer
+    // Will return the newer if both versions are exact values
+    // If one version is a range and another an exact then the exact will be used if
+    //   it is in the range or newer
+    // If both versions are ranges they will be narrowed, if there is an intersect
+    //    - Otherwise the newer of the two ranges will be used
     static String acceptedOrIntersectVersion(String inComingStr, String existingStr) {
         def inComing = parseSelector(inComingStr)
         def existing = parseSelector(existingStr)
@@ -494,19 +510,21 @@ class GradleProjectPlugin implements Plugin<Project> {
         // At this point we know either inComing or existing is a VersionRangeSelector type
         if (inComing instanceof VersionRangeSelector) {
             if (inComing.accept(existing.selector))
-                return changeLowerBoundOfSelector(inComing, existingStr).selector
+                return existingStr
             else if (compareVersions(inComing.lowerBound, existingStr) > 0)
                 return inComingStr
             else
-                return changeUpperBoundOfSelector(inComing, existingStr).selector
+                return existingStr
         }
         else {
             if (existing.accept(inComing.selector))
-                return changeLowerBoundOfSelector(existing, inComingStr).selector
+                return inComingStr
             else if (compareVersions(inComingStr, existing.upperBound) > 0)
-                return changeUpperBoundOfSelector(existing, inComingStr).selector
+                return inComingStr
             else
                 return existingStr
+            // TODO: 1. Use lowerBound of inclusive range. (Easy)
+            //       2. If exclusive, use the next lowest version candidate. (Hard)
         }
     }
 
@@ -526,6 +544,23 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (compareVersions(max.selector, current.upperBound) > 0)
             return currentStr
         return maxStr
+    }
+
+    // Checks if version is lower or if is contained in the range
+    // inVersionStr can be a String of an ExactVersionSelector or VersionRangeSelector
+    static boolean isVersionInOrLower(String inVersionStr, ExactVersionSelector checkVersion) {
+        lowerMaxVersion(inVersionStr, checkVersion.selector) != inVersionStr
+    }
+
+    static boolean isVersionNewer(String inVersionStr, ExactVersionSelector checkVersion) {
+        def inVersion = parseSelector(inVersionStr)
+        if (inVersion instanceof VersionRangeSelector) {
+            boolean inRange = inVersion.accept(checkVersion.selector)
+            if (inRange)
+                return false
+            return compareVersions(checkVersion.selector, inVersion.upperBound) > 0
+        }
+        compareVersions(checkVersion.selector, inVersionStr) > 0
     }
 
 }
