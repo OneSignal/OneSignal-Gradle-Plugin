@@ -139,7 +139,6 @@ class MainTest extends Specification {
     //          OneSignal SDK's range it should be respected for best chance of compatibility
     def "GMS pining when in version range - GMS in sub project - Gradle 4_6"() {
         def compileLines = """\
-            compile(project(path: 'subProject'))
             compile 'com.onesignal:OneSignal:3.8.3'
         """
 
@@ -147,14 +146,14 @@ class MainTest extends Specification {
         def results = runGradleProject([
             skipGradleVersion: '2.14.1',
             compileLines : compileLines,
-            subProjectCompileLines: "compile 'com.google.android.gms:play-services-gcm:11.4.0'"
+            subProjectCompileLines: "compile 'com.google.android.gms:play-services-games:11.4.0'"
         ])
 
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
             // NOTE: This assert is the known behavior but should be "-> 11.4.0" instead
-            assert it.value.contains('com.google.android.gms:play-services-gcm:[10.2.1, 12.1.0) -> 12.0.1')
+            assert it.value.contains('com.google.android.gms:play-services-gcm:[10.2.1, 12.1.0) -> 11.4.0')
         }
     }
 
@@ -373,8 +372,8 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.android.support:appcompat-v7:[25.0.0, 26.0.0) -> 26.0.0-beta2')
-            assert it.value.contains('com.android.support:support-v4:25.+ -> 26.0.0-beta2')
+            assert it.value.contains('com.android.support:appcompat-v7:[25.0.0, 26.0.0) -> 25.4.0')
+            assert it.value.contains('com.android.support:support-v4:25.+ -> 25.4.0')
         }
     }
 
@@ -424,6 +423,7 @@ class MainTest extends Specification {
 
     // Need to add compat code for older gradle version.
     def "Ensure flavors work on Gradle 3_3 and latest"() {
+        // TODO: Need to fix Gradle 3.3 part of this test. Need to implement interest compat yet
         GradleTestTemplate.gradleVersions['3.3'] = 'com.android.tools.build:gradle:2.3.3'
 
         GradleTestTemplate.buildArgumentSets.remove('2.14.1')
@@ -496,6 +496,7 @@ class MainTest extends Specification {
         ])
 
         then:
+        assert results // Asserting existence and contains 1+ entries
         results.each {
             assert it.value.contains('com.android.support:cardview-v7:[26.0.0, 27.1.0) -> 27.0.2')
             assert it.value.contains('com.android.support:support-v4:25.+ -> 27.0.2 (*)')
@@ -504,7 +505,7 @@ class MainTest extends Specification {
 
     // Note: Slow 20 second test, this is doing a full build
     //   This is needed as we are making sure compile and runtime versions are not being miss aligned
-    //   Asserts are not needed for this as Gradle or AGP fails to build when this happens
+    //   Asserts just a double check as Gradle or AGP fails to build when this happens
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26 with build tasks"() {
         GradleTestTemplate.buildArgumentSets['4.6'] = [
             ['build', '--info']
@@ -520,9 +521,10 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
         results.each {
             assert it.value.contains("com.onesignal:OneSignal overridden from '3.5.+' to '3.6.3'")
-            // Could be '[26.1.0,26.2.0[' but I believe inner dependencies of com.android.support:support-v4
-            //   are causing it to be locked to 26.1.0 instead. OK in this case but breaks some of the rules
-            assert it.value.contains("com.android.support:support-v4 overridden from '25.2.0' to '26.1.0'")
+            // 25.2.0 comes from; com.onesignal:OneSignal:3.6.3 ->
+            //                      com.google.android.gms:play-services-basement:[10.2.1,11.3.0) -> 11.2.2 ->
+            //                         com.android.support:25.2.0
+            assert it.value.contains("com.android.support:support-v4 overridden from '25.2.0' to '[26.0.0,26.2.0['")
         }
     }
 }

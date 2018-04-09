@@ -107,7 +107,7 @@ class GradleTestTemplate {
 
                 ${
                 if (buildSections['subProjectCompileLines'] != null)
-                   "compile(project(':subProject'))"
+                   "implementation(project(':subProject'))"
                 else
                     ''
                 }
@@ -140,7 +140,6 @@ class GradleTestTemplate {
                     minSdkVersion ${buildSections['minSdkVersion']}
                 }
                 buildTypes {
-                    main { }
                     debug { }
                 }
             }
