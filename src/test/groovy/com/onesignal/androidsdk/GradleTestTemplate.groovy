@@ -107,7 +107,7 @@ class GradleTestTemplate {
 
                 ${
                 if (buildSections['subProjectCompileLines'] != null)
-                   "implementation(project(':subProject'))"
+                   "compile(project(':subProject'))"
                 else
                     ''
                 }

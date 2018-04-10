@@ -218,6 +218,32 @@ class MainTest extends Specification {
         assertAcceptedOrIntersectVersion('[26.0.0, 27.1.0)', '25.+', '[26.0.0, 27.1.0)')
     }
 
+    static assertIntersectCompat(String inComingStr, String existingStr, String expected) {
+        def inComing = GradleProjectPlugin.parseSelector(inComingStr)
+        def existing = GradleProjectPlugin.parseSelector(existingStr)
+
+        assert VersionCompatHelpers.intersect(inComing, existing)?.selector == expected
+        assert VersionCompatHelpers.intersect(inComing, existing)?.selector == expected
+    }
+
+    // Gradle 2.14.1 compat unit test
+    def "GradleProjectPlugin test intersectCompat"() {
+        // NOTE: Must keep given: here for tests to run!
+        given:
+        assertIntersectCompat('[1.0.0, 1.99.99]', '[1.5.0, 1.6.0]', '[1.5.0,1.6.0]')
+        // ## Narrowing lower
+        assertIntersectCompat('[1.0.0, 1.99.99]', '[0.5.0, 1.5.0]', '[1.0.0,1.5.0]')
+        // ## Narrowing upper
+        assertIntersectCompat('[1.0.0, 1.99.99]', '[1.5.0, 2.5.0]', '[1.5.0,1.99.99]')
+        // ## Ranges miss = return null
+        assertIntersectCompat('[1.0.0, 1.99.99]', '[3.0.0, 4.0.0]', null)
+
+        // # Both Version Ranges - Exclusive
+        // ## Narrowing from both directions
+        assertIntersectCompat('(1.0.0, 1.99.99)', '[1.5.0, 1.6.0]', '[1.5.0,1.6.0]')
+        assertIntersectCompat('(1.0.0, 1.99.99)', '(1.5.0, 1.6.0)', ']1.5.0,1.6.0[')
+        assertIntersectCompat('(1.0.0, 1.99.99)', '[1.5.0, 1.6.0)', '[1.5.0,1.6.0[')
+    }
 
     def "GradleProjectPlugin test lowerMaxVersion"() {
           // Used to
@@ -228,6 +254,7 @@ class MainTest extends Specification {
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26"() {
         when:
         def results = runGradleProject([
+            compileSdkVersion: 26, // Unexpected crash if this is 27...
             compileLines : "compile 'com.onesignal:OneSignal:3.5.+'",
             skipGradleVersion: '2.14.1' // This check requires AGP 3.0.1+ which requires Gradle 4.1+
         ])
