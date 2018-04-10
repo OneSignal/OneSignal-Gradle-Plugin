@@ -96,7 +96,6 @@ class MainTest extends Specification {
 
     def "GMS pining when in version range - OneSignal in sub project"() {
         def compileLines = """\
-            compile(project(path: 'subProject'))
             compile 'com.google.android.gms:play-services-base:11.4.0'
         """
 
@@ -115,7 +114,6 @@ class MainTest extends Specification {
 
     def "GMS pining when in version range - GMS in sub project - Gradle 2_14_1"() {
         def compileLines = """\
-            compile(project(path: 'subProject'))
             compile 'com.onesignal:OneSignal:3.8.3'
         """
 
@@ -133,10 +131,6 @@ class MainTest extends Specification {
         }
     }
 
-    // TODO: This test asserts an expected acceptable outcome, the best outcome is noted below
-    //       It would great to this pining working as this is going to be a common case
-    //       If anther SDK pins GMS to a specific version that is also in the
-    //          OneSignal SDK's range it should be respected for best chance of compatibility
     def "GMS pining when in version range - GMS in sub project - Gradle 4_6"() {
         def compileLines = """\
             compile 'com.onesignal:OneSignal:3.8.3'
@@ -152,7 +146,6 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            // NOTE: This assert is the known behavior but should be "-> 11.4.0" instead
             assert it.value.contains('com.google.android.gms:play-services-gcm:[10.2.1, 12.1.0) -> 11.4.0')
         }
     }
@@ -254,7 +247,7 @@ class MainTest extends Specification {
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26"() {
         when:
         def results = runGradleProject([
-            compileSdkVersion: 26, // Unexpected crash if this is 27...
+            compileSdkVersion: 26,
             compileLines : "compile 'com.onesignal:OneSignal:3.5.+'",
             skipGradleVersion: '2.14.1' // This check requires AGP 3.0.1+ which requires Gradle 4.1+
         ])
@@ -427,7 +420,6 @@ class MainTest extends Specification {
             compile 'com.onesignal:OneSignal:3.6.4'
             compile 'com.android.support:appcompat-v7:25.0.0'
             compile 'com.android.support:support-v4:26.0.0'
-            compile(project(path: 'subProject'))
         """
 
         when:
@@ -448,9 +440,7 @@ class MainTest extends Specification {
         }
     }
 
-    // Need to add compat code for older gradle version.
     def "Ensure flavors work on Gradle 3_3 and latest"() {
-        // TODO: Need to fix Gradle 3.3 part of this test. Need to implement interest compat yet
         GradleTestTemplate.gradleVersions['3.3'] = 'com.android.tools.build:gradle:2.3.3'
 
         GradleTestTemplate.buildArgumentSets.remove('2.14.1')
@@ -540,7 +530,9 @@ class MainTest extends Specification {
 
         when:
         def results = runGradleProject([
-            compileLines : "compile 'com.onesignal:OneSignal:3.5.+'",
+            compileSdkVersion: 26,
+            targetSdkVersion: 26,
+            compileLines: "compile 'com.onesignal:OneSignal:3.5.+'",
             skipGradleVersion: '2.14.1'
         ])
 
@@ -548,9 +540,9 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
         results.each {
             assert it.value.contains("com.onesignal:OneSignal overridden from '3.5.+' to '3.6.3'")
-            // 25.2.0 comes from; com.onesignal:OneSignal:3.6.3 ->
-            //                      com.google.android.gms:play-services-basement:[10.2.1,11.3.0) -> 11.2.2 ->
-            //                         com.android.support:25.2.0
+            // 25.2.0 comes from; + com.onesignal:OneSignal:3.6.3 ->
+            //                    |- + com.google.android.gms:play-services-basement:[10.2.1,11.3.0) -> 11.2.2 ->
+            //                    \---- + com.android.support:25.2.0
             assert it.value.contains("com.android.support:support-v4 overridden from '25.2.0' to '[26.0.0,26.2.0['")
         }
     }

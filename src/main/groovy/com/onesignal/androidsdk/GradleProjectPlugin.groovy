@@ -122,9 +122,6 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static boolean didUpdateOneSignalVersion
 
-    // TODO: MUSTS BEFORE next release 0.8.3+
-    //   TODO: 1. Compat for VersionRangeSelector.intersect for Gradle 2.14.1 to 4.2
-    //   TODO: 2. Ensure VersionRangeSelector.accept works
     @Override
     void apply(Project inProject) {
         project = inProject
