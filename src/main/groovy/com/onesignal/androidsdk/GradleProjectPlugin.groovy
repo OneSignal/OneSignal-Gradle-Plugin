@@ -500,10 +500,20 @@ class GradleProjectPlugin implements Plugin<Project> {
         versionSelector
     }
 
+
+    // VersionRangeSelector.intersect was introduced in Gradle 4.3, this is a compat wrapper method
+    static VersionRangeSelector intersectCompat(VersionRangeSelector inComing, VersionRangeSelector existing) {
+        if (inComing.metaClass.respondsTo(inComing, 'intersect', VersionRangeSelector, VersionRangeSelector))
+            return inComing.intersect(existing)
+
+        // This means we are on Gradle 4.2 or older so use compat version of intersect
+        VersionCompatHelpers.intersect(inComing, existing)
+    }
+
     // Returns the intersection range of two versions
     // If no over lap the higher of the two will be returned
     static VersionRangeSelector mergedIntersectOrHigher(VersionRangeSelector inComing, VersionRangeSelector existing) {
-        def intersectResult = inComing.intersect(existing)
+        def intersectResult = intersectCompat(inComing, existing)
         if (intersectResult != null)
             return intersectResult
 
