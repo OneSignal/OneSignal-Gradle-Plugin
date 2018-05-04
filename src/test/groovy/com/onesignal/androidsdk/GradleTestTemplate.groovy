@@ -18,18 +18,21 @@ class GradleTestTemplate {
         minSdkVersion: 15
     ]
 
+    static def GRADLE_LATEST_VERSION = '4.7'
+    static def GRADLE_OLDEST_VERSION = '2.14.1'
+
     static def setup() {
         gradleVersions = [
-            '2.14.1': 'com.android.tools.build:gradle:2.2.3',
-            '4.6': 'com.android.tools.build:gradle:3.1.0'
+            (GRADLE_OLDEST_VERSION): 'com.android.tools.build:gradle:2.2.3',
+            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.1.2'
         ]
 
         buildArgumentSets = [
-            '2.14.1': [
+            (GRADLE_OLDEST_VERSION): [
                 ['dependencies', '--configuration', 'compile', '--info'],
                 ['dependencies', '--configuration', '_debugCompile', '--info']
             ],
-            '4.6': [
+            (GRADLE_LATEST_VERSION): [
                 // compile does not work on it's own for tests since we use variant.compileConfiguration
                 ['dependencies', '--configuration', 'compile', '--info'],
                 ['dependencies', '--configuration', 'debugCompileClasspath', '--info'] //  '--stacktrace'

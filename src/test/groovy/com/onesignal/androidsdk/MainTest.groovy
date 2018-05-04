@@ -4,6 +4,9 @@ import spock.lang.Specification
 
 class MainTest extends Specification {
 
+    static def GRADLE_LATEST_VERSION = GradleTestTemplate.GRADLE_LATEST_VERSION
+    static def GRADLE_OLDEST_VERSION = GradleTestTemplate.GRADLE_OLDEST_VERSION
+
     // Before each test
     def setup() {
         GradleTestTemplate.setup()
@@ -22,7 +25,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.8.3')
+            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.8.4')
         }
     }
 
@@ -119,7 +122,7 @@ class MainTest extends Specification {
 
         when:
         def results = runGradleProject([
-            skipGradleVersion: '4.6',
+            skipGradleVersion: GRADLE_LATEST_VERSION,
             compileLines : compileLines,
             subProjectCompileLines: "compile 'com.google.android.gms:play-services-gcm:11.4.0'"
         ])
@@ -131,14 +134,14 @@ class MainTest extends Specification {
         }
     }
 
-    def "GMS pining when in version range - GMS in sub project - Gradle 4_6"() {
+    def "GMS pining when in version range - GMS in sub project - Gradle 4_7"() {
         def compileLines = """\
             compile 'com.onesignal:OneSignal:3.8.3'
         """
 
         when:
         def results = runGradleProject([
-            skipGradleVersion: '2.14.1',
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
             compileLines : compileLines,
             subProjectCompileLines: "compile 'com.google.android.gms:play-services-games:11.4.0'"
         ])
@@ -249,7 +252,7 @@ class MainTest extends Specification {
         def results = runGradleProject([
             compileSdkVersion: 26,
             compileLines : "compile 'com.onesignal:OneSignal:3.5.+'",
-            skipGradleVersion: '2.14.1' // This check requires AGP 3.0.1+ which requires Gradle 4.1+
+            skipGradleVersion: GRADLE_OLDEST_VERSION // This check requires AGP 3.0.1+ which requires Gradle 4.1+
         ])
 
         then:
@@ -267,7 +270,7 @@ class MainTest extends Specification {
                 compile 'com.onesignal:OneSignal:3.6.+'
                 compile 'com.android.support:support-v4:27.0.0'
             """,
-            skipGradleVersion: '2.14.1'
+            skipGradleVersion: GRADLE_OLDEST_VERSION
         ])
 
         then:
@@ -443,14 +446,14 @@ class MainTest extends Specification {
     def "Ensure flavors work on Gradle 3_3 and latest"() {
         GradleTestTemplate.gradleVersions['3.3'] = 'com.android.tools.build:gradle:2.3.3'
 
-        GradleTestTemplate.buildArgumentSets.remove('2.14.1')
+        GradleTestTemplate.buildArgumentSets.remove(GRADLE_OLDEST_VERSION)
 
         GradleTestTemplate.buildArgumentSets['3.3'] = [
             ['dependencies', '--configuration', 'compile', '--info'],
             ['dependencies', '--configuration', '_sandboxDebugCompile', '--info']
         ]
 
-        GradleTestTemplate.buildArgumentSets['4.6'] = [
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [
             ['dependencies', '--configuration', 'compile', '--info'],
             ['dependencies', '--configuration', 'sandboxDebugCompileClasspath', '--info']
         ]
@@ -503,7 +506,7 @@ class MainTest extends Specification {
     def "support sub library projects"() {
         when:
         def results = runGradleProject([
-            skipGradleVersion: '2.14.1',
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
             compileLines : "compile 'com.onesignal:OneSignal:3.6.4'",
             subProjectCompileLines: """\
                 compile 'com.android.support:cardview-v7:[26.0.0, 27.1.0)'
@@ -524,7 +527,7 @@ class MainTest extends Specification {
     //   This is needed as we are making sure compile and runtime versions are not being miss aligned
     //   Asserts just a double check as Gradle or AGP fails to build when this happens
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26 with build tasks"() {
-        GradleTestTemplate.buildArgumentSets['4.6'] = [
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [
             ['build', '--info']
         ]
 
@@ -533,7 +536,7 @@ class MainTest extends Specification {
             compileSdkVersion: 26,
             targetSdkVersion: 26,
             compileLines: "compile 'com.onesignal:OneSignal:3.5.+'",
-            skipGradleVersion: '2.14.1'
+            skipGradleVersion: GRADLE_OLDEST_VERSION
         ])
 
         then:
