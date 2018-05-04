@@ -2,11 +2,16 @@ package com.onesignal.androidsdk
 
 import com.android.build.gradle.api.BaseVariant
 import org.gradle.api.DomainObjectCollection
+import org.gradle.api.DomainObjectSet
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.Dependency
+import org.gradle.api.artifacts.DependencyConstraint
 import org.gradle.api.artifacts.DependencyResolveDetails
 import org.gradle.api.artifacts.result.DependencyResult
+import org.gradle.api.internal.artifacts.dependencies.DefaultDependencyConstraint
+import org.gradle.api.internal.artifacts.dependencies.DefaultProjectDependency
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.VersionInfo
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionComparator
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionSelectorScheme
@@ -15,6 +20,7 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.LatestVe
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.SubVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionRangeSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionSelector
+import org.gradle.api.specs.Spec
 
 // This Gradle plugin automatically fixes or notifies developer of requires changes to make the
 //    OneSignal Android SDK compatible with the app's project
@@ -45,6 +51,15 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionS
 //            }
 //        }
 //    }
+
+class MySpecFilter implements Spec<Dependency> {
+    boolean isSatisfiedBy(Dependency element) {
+        println("isSatisfiedBy:element: ${element}")
+//        if (element instanceof DefaultProjectDependency)
+//            return false
+        return true
+    }
+}
 
 class GradleProjectPlugin implements Plugin<Project> {
 
@@ -129,16 +144,25 @@ class GradleProjectPlugin implements Plugin<Project> {
         moduleVersionOverrides = [:]
         moduleCopied = [:]
 
+        println("HERE1")
+        println(project)
+        println(project.rootProject)
+
         resolutionHooksForAndroidPluginV3()
-        resolutionHooksForAndroidPluginV2()
+//        resolutionHooksForAndroidPluginV2()
     }
 
     static void resolutionHooksForAndroidPluginV3() {
+        println("resolutionHooksForAndroidPluginV3 TOP")
         project.afterEvaluate {
+            project = project.rootProject
+            println("resolutionHooksForAndroidPluginV3 After eval")
             projectVariants().all { variant ->
                 // compileConfiguration is new in AGP 3.0.0
                 if (!variant.hasProperty('compileConfiguration'))
                     return
+
+                println("resolutionHooksForAndroidPluginV3: ${variant.name}")
 
                 doResolutionStrategyAndroidPluginV3(variant.compileConfiguration)
             }
@@ -184,17 +208,17 @@ class GradleProjectPlugin implements Plugin<Project> {
     static void doResolutionStrategyAndroidPluginV3(Configuration configuration) {
         generateHighestVersionsForGroups(configuration)
 
-        configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            projectVariants().all { variant ->
-                doTargetSdkVersionAlign(details)
-
-                project.configurations.all { Configuration config ->
-                    generateHighestVersionsForGroups(config)
-                }
-
-                doGroupAlignStrategyOnDetail(details)
-            }
-        }
+//        configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+//            projectVariants().all { variant ->
+//                doTargetSdkVersionAlign(details)
+//
+//                project.configurations.all { Configuration config ->
+//                    generateHighestVersionsForGroups(config)
+//                }
+//
+//                doGroupAlignStrategyOnDetail(details)
+//            }
+//        }
     }
 
     // Get either applicationVariants or libraryVariants depending on project type
@@ -359,6 +383,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void generateHighestVersionsForGroups(Configuration configuration) {
+        println("1generateHighestVersionsForGroups:  ${configuration}")
         // Prevent duplicate runs for the same configuration name
         //   Fixes infinite calls when multiDexEnabled is set
         if (moduleCopied[configuration.name])
@@ -367,22 +392,35 @@ class GradleProjectPlugin implements Plugin<Project> {
 
         didUpdateOneSignalVersion = false
 
-        def configCopy = configuration.copyRecursive()
+        org.gradle.api.internal.artifacts.configurations.DefaultConfiguration
+        def configCopy = configuration.copyRecursive(new MySpecFilter())
+        println("configCopy: ${configCopy.class}")
         forceCanBeResolved(configCopy)
 
-        configCopy.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            doTargetSdkVersionAlign(details)
-
-            if (!inGroupAlignList(details))
-                return
-
-            // Needed for "Upgrade to compatible OneSignal SDK when using Android Support library rev 27" test
-            String curOverrideVersion = versionGroupAligns[details.requested.group]['version']
-            if (curOverrideVersion != null && curOverrideVersion != NO_REF_VERSION)
-                details.useVersion(curOverrideVersion)
+        def dependencyConstraints = configCopy.getAllDependencyConstraints()
+        //DomainObjectSet<DependencyConstraint> copiedDependencyConstraints = configCopy.getDependencyConstraints();
+        for (DependencyConstraint dependencyConstraint : dependencyConstraints) {
+            println("dependencyConstraints HERE1")
+            ((DefaultDependencyConstraint)dependencyConstraint).canBeResolved = true
+            println("dependencyConstraints HERE2")
         }
 
+//        configCopy.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+//            println("configCopy.resolutionStrategy.eachDependency:details: ${details.requested}")
+//
+//            doTargetSdkVersionAlign(details)
+//
+//            if (!inGroupAlignList(details))
+//                return
+//
+//            // Needed for "Upgrade to compatible OneSignal SDK when using Android Support library rev 27" test
+//            String curOverrideVersion = versionGroupAligns[details.requested.group]['version']
+////            if (curOverrideVersion != null && curOverrideVersion != NO_REF_VERSION)
+////                details.useVersion(curOverrideVersion)
+//        }
+
         triggerResolutionStrategy(configCopy)
+        println("generateHighestVersionsForGroups:triggerResolutionStrategy:AFTER")
 
         // OneSignal version was changed, need to rerun to get it's dependencies
         if (didUpdateOneSignalVersion) {
@@ -412,34 +450,34 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void processIncomingResultionResults(Configuration configuration) {
-        configuration.incoming.resolutionResult.allDependencies.each { DependencyResult dependencyResult ->
-            // Ignore Google's inner dependencies when deciding on what version align groups with
-            if (shouldSkipCalcIfParent(dependencyResult))
-                return
-
-            def requestedArtifactParts = dependencyResult.requested.displayName.split(':')
-
-            // String did't contain all parts, most likely a project result so skip
-            if (requestedArtifactParts.size() < 3)
-                return
-
-            def group = requestedArtifactParts[0]
-            def name = requestedArtifactParts[1]
-            def version = requestedArtifactParts[2]
-
-            if (!inGroupAlignListFindByStrings(group, name))
-                return
-
-            String curOverrideVersion = versionGroupAligns[group]['version']
-            def newVersion = acceptedOrIntersectVersion(version, curOverrideVersion)
-
-            if (newVersion != curOverrideVersion)
-                updateVersionGroupAligns(group, newVersion)
-        }
+//        configuration.incoming.resolutionResult.allDependencies.each { DependencyResult dependencyResult ->
+//            // Ignore Google's inner dependencies when deciding on what version align groups with
+//            if (shouldSkipCalcIfParent(dependencyResult))
+//                return
+//
+//            def requestedArtifactParts = dependencyResult.requested.displayName.split(':')
+//
+//            // String did't contain all parts, most likely a project result so skip
+//            if (requestedArtifactParts.size() < 3)
+//                return
+//
+//            def group = requestedArtifactParts[0]
+//            def name = requestedArtifactParts[1]
+//            def version = requestedArtifactParts[2]
+//
+//            if (!inGroupAlignListFindByStrings(group, name))
+//                return
+//
+//            String curOverrideVersion = versionGroupAligns[group]['version']
+//            def newVersion = acceptedOrIntersectVersion(version, curOverrideVersion)
+//
+//            if (newVersion != curOverrideVersion)
+//                updateVersionGroupAligns(group, newVersion)
+//        }
 
         // Triggers configuration.incoming.resolutionResult above
         // Rethrow on failures if any issues
-        configuration.resolvedConfiguration.rethrowFailure()
+        configuration.resolvedConfiguration //.rethrowFailure()
     }
 
     static boolean shouldSkipCalcIfParent(DependencyResult result) {

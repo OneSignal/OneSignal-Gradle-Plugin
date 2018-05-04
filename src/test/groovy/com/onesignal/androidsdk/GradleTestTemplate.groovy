@@ -20,7 +20,7 @@ class GradleTestTemplate {
 
     static def setup() {
         gradleVersions = [
-            '2.14.1': 'com.android.tools.build:gradle:2.2.3',
+//            '2.14.1': 'com.android.tools.build:gradle:2.2.3',
             '4.6': 'com.android.tools.build:gradle:3.1.0'
         ]
 
@@ -31,7 +31,7 @@ class GradleTestTemplate {
             ],
             '4.6': [
                 // compile does not work on it's own for tests since we use variant.compileConfiguration
-                ['dependencies', '--configuration', 'compile', '--info'],
+//                ['dependencies', '--configuration', 'compile', '--info'],
                 ['dependencies', '--configuration', 'debugCompileClasspath', '--info'] //  '--stacktrace'
             ]
         ]
@@ -63,10 +63,6 @@ class GradleTestTemplate {
                     classpath 'com.android.tools.build:gradle:XX.XX.XX'
                     ${buildSections['buildscriptDependencies']}
                 }
-            }
-            
-            plugins {
-                id 'com.onesignal.androidsdk.onesignal-gradle-plugin'
             }
             
             allprojects {
@@ -130,6 +126,9 @@ class GradleTestTemplate {
 
     static def subProjectBuildDotGradle(buildSections) {
         """\
+            plugins {
+                id 'com.onesignal.androidsdk.onesignal-gradle-plugin'
+            }
             ${buildSections['libProjectExtras']}
             apply plugin: 'com.android.library'
 
