@@ -13,7 +13,7 @@ buildscript {
     dependencies {
         // ...
         // OneSignal-Gradle-Plugin
-        classpath 'gradle.plugin.com.onesignal:onesignal-gradle-plugin:[0.8.2, 0.99.99]' 
+        classpath 'gradle.plugin.com.onesignal:onesignal-gradle-plugin:[0.9.0, 0.99.99]' 
     }
 }
 ```
@@ -25,18 +25,21 @@ apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'
 4. Clean and rebuild
 
 ## Features
-- Automatically aligns versions of module dependencies under the same group. This fixes compile and runtime errors due to mismatched interdependencies. Applies to the following libraries;
+- Automatically aligns versions of module dependencies under the same group. This fixes compile and runtime errors due to mismatched interdependencies.
+Applies to the following libraries:
   - `com.google.android.gms`
   - `com.google.firebase`
   - `com.android.support`
 - Ensures `com.android.support` is never higher than `compileSdkVersion`
 - Ensures a compatible OneSignal SDK version for the `targetSdkVersion` you're using
 - Ensures new enought OneSignal SDK is included when `com.android.support` is upgraded
+- Calculates intersecting range of 2 version ranges
+   - Including backwards capability with Gradle 2.14.1
 - Future: Other warnings and checks specific to OneSignal such as app_id and notification icons
 
 ## Compatibility
 Compatible with Gradle 2.14.1+ and AGP (Android Gradle Plugin) 2.2.3+
-* Tested up to Gradle 4.6 and AGP 3.1.0
+* Tested up to Gradle 4.7 and AGP 3.1.2
 
 ## Change Log
 See this repository's [release tags](https://github.com/OneSignal/OneSignal-Gradle-Plugin/releases) for a complete change log.
