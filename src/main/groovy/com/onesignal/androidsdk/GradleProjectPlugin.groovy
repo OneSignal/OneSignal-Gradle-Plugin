@@ -61,14 +61,12 @@ class GradleProjectPlugin implements Plugin<Project> {
     // Each of the groups below must have their own module versions aligned
     static final def VERSION_GROUP_ALIGNS = [
         // ### Google Play Services library
-        (GROUP_GMS)            : [
+        (GROUP_GMS): [
             version: NO_REF_VERSION
         ],
 
         // ### Google Firebase library
-        // Although not used by OneSignal Firebase has some dependencies on gms
-        // If present, ensuring they are aligned
-        (GROUP_FIREBASE)       : [
+        (GROUP_FIREBASE): [
             version: NO_REF_VERSION
         ],
 
@@ -88,7 +86,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         ],
 
         // Exists only for UPDATE_PARENT_ON_DEPENDENCY_UPGRADE
-        (GROUP_ONESIGNAL)      : [
+        (GROUP_ONESIGNAL): [
             version: NO_REF_VERSION
         ]
     ]
@@ -211,11 +209,11 @@ class GradleProjectPlugin implements Plugin<Project> {
     static int getCurrentTargetSdkVersion() {
         def targetSdkVersion = 0
         projectVariants().all { variant ->
-            def mergedFlavor = variant.getMergedFlavor()
+            def mergedFlavor = variant.mergedFlavor
             // Use targetSdkVersion unless null, fallback is minSdkVersion, 1 the static fallback
             if (mergedFlavor.targetSdkVersion != null)
                 targetSdkVersion = mergedFlavor.targetSdkVersion.apiLevel
-            else if ( mergedFlavor.minSdkVersion != null)
+            else if (mergedFlavor.minSdkVersion != null)
                 targetSdkVersion = mergedFlavor.minSdkVersion.apiLevel
             else
                 targetSdkVersion = 1
@@ -224,10 +222,11 @@ class GradleProjectPlugin implements Plugin<Project> {
         targetSdkVersion
     }
 
+    // Checks the MINIMUM_MODULE_VERSION_FOR_TARGET_SDK hash to see if the module needs to be updated
+    //   for the projects current targetSdkVersion
     static void doTargetSdkVersionAlign(DependencyResolveDetails details) {
         String existingOverrider = moduleVersionOverrides["${details.requested.group}:${details.requested.name}"]
-        if (existingOverrider)
-            details.useVersion(existingOverrider)
+        overrideVersion(details, existingOverrider)
 
         def module = MINIMUM_MODULE_VERSION_FOR_TARGET_SDK["${details.requested.group}:${details.requested.name}"]
         if (!module)
@@ -251,7 +250,7 @@ class GradleProjectPlugin implements Plugin<Project> {
                 project.logger.info("Changing OneSignal for TargetSdkVersion. ${curVersion} -> ${newVersion}")
                 moduleVersionOverrides["${details.requested.group}:${details.requested.name}"] = newVersion
                 versionGroupAligns[details.requested.group] = [version: newVersion]
-                details.useVersion(newVersion)
+                overrideVersion(details, newVersion)
             }
         }
     }
@@ -277,13 +276,38 @@ class GradleProjectPlugin implements Plugin<Project> {
             "${compileSdkVersion}.+"
         )
     }
-
+    
     static void overrideVersion(DependencyResolveDetails details, String resolvedVersion) {
+        // Omit NULLs
+        if (resolvedVersion == null)
+            return
+
+        // Omit override if never set a non-default version
         if (resolvedVersion == NO_REF_VERSION)
             return
 
+        // Omit override if no change
         if (details.requested.version == resolvedVersion)
             return
+
+        // Special Google rule if going from pre-15's non-semantic versions to 15+'s semantic versions
+        def newGoogleVersion = new ExactVersionSelector('15.0.0')
+        def isGoogleLibrary = details.requested.group == GROUP_GMS || details.requested.group == GROUP_FIREBASE
+        def hasAlignOver15 = isVersionInOrHigher(versionGroupAligns[GROUP_GMS]['version'] as String, newGoogleVersion) ||
+                             isVersionInOrHigher(versionGroupAligns[GROUP_FIREBASE]['version'] as String, newGoogleVersion)
+        if (isGoogleLibrary && hasAlignOver15) {
+            // These Google license libraries were dropped in 15.0.0+, omit them
+            if (details.requested.name ==~ /firebase-.*-license/ ||
+                details.requested.name ==~ /play-services-.*-license/)
+                return
+
+            // If the requested version is under 15 increase to version range that will include other libraries
+            if (isVersionBelow(details.requested.version, newGoogleVersion))
+                resolvedVersion = '[15.0.0, 16.0.0)'
+            // The requested version is higher or contains 15.0.0 don't override
+            else if (isVersionInOrHigher(details.requested.version, newGoogleVersion))
+                return
+        }
 
         logModuleOverride(details, resolvedVersion)
         details.useVersion(resolvedVersion)
@@ -297,7 +321,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
 
-    static boolean inGroupAlignListFindByStrings(String group, String name) {
+    static boolean inGroupAlignListFindByStrings(String group, String name, String version) {
         // Only override groups we define
         def versionOverride = versionGroupAligns[group]
         if (!versionOverride)
@@ -307,13 +331,15 @@ class GradleProjectPlugin implements Plugin<Project> {
         def omitModules = versionOverride['omitModules']
         if (omitModules && omitModules.contains(name))
             return false
+
         true
     }
 
     static boolean inGroupAlignList(DependencyResolveDetails details) {
-        inGroupAlignListFindByStrings(details.requested.group, details.requested.name)
+        inGroupAlignListFindByStrings(details.requested.group, details.requested.name, details.requested.version)
     }
 
+    // Compares two exact versions
     // Returns 1 if inComing is newer than existing
     // Returns 0 if both version are the same
     // Returns -1 inComing is older than existing
@@ -336,7 +362,8 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     // Parts of Firebase depend parts of GMS that must align to the same version
-    static void alignAcrossGroups(def versionGroupAligns) {
+    // This only applies to versions less than 15.0.0
+    static void alignAcrossGroups(versionGroupAligns) {
         def highestVersion = acceptedOrIntersectVersion(
             versionGroupAligns[GROUP_GMS]['version'] as String,
             versionGroupAligns[GROUP_FIREBASE]['version'] as String
@@ -378,8 +405,7 @@ class GradleProjectPlugin implements Plugin<Project> {
 
             // Needed for "Upgrade to compatible OneSignal SDK when using Android Support library rev 27" test
             String curOverrideVersion = versionGroupAligns[details.requested.group]['version']
-            if (curOverrideVersion != null && curOverrideVersion != NO_REF_VERSION)
-                details.useVersion(curOverrideVersion)
+            overrideVersion(details, curOverrideVersion)
         }
 
         triggerResolutionStrategy(configCopy)
@@ -396,22 +422,23 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
-    static void updateVersionGroupAligns(String group, String version) {
+    static void updateVersionGroupAligns(String group, String module, String version) {
         if (group == GROUP_ONESIGNAL)
             project.logger.info("OneSignal: Setting version in versionGroupAligns to: ${version}")
         updateParentOnDependencyUpgrade(group, version)
+
         versionGroupAligns[group]['version'] = version
     }
 
     static void triggerResolutionStrategy(Configuration configuration) {
         try {
-           processIncomingResultionResults(configuration)
+           processIncomingResolutionResults(configuration)
         } catch (any) {
             any.printStackTrace()
         }
     }
 
-    static void processIncomingResultionResults(Configuration configuration) {
+    static void processIncomingResolutionResults(Configuration configuration) {
         configuration.incoming.resolutionResult.allDependencies.each { DependencyResult dependencyResult ->
             // Ignore Google's inner dependencies when deciding on what version align groups with
             if (shouldSkipCalcIfParent(dependencyResult))
@@ -424,17 +451,16 @@ class GradleProjectPlugin implements Plugin<Project> {
                 return
 
             def group = requestedArtifactParts[0]
-            def name = requestedArtifactParts[1]
+            def module = requestedArtifactParts[1]
             def version = requestedArtifactParts[2]
 
-            if (!inGroupAlignListFindByStrings(group, name))
+            if (!inGroupAlignListFindByStrings(group, module, version))
                 return
 
             String curOverrideVersion = versionGroupAligns[group]['version']
             def newVersion = acceptedOrIntersectVersion(version, curOverrideVersion)
 
-            if (newVersion != curOverrideVersion)
-                updateVersionGroupAligns(group, newVersion)
+            updateVersionGroupAligns(group, module, newVersion)
         }
 
         // Triggers configuration.incoming.resolutionResult above
@@ -568,7 +594,8 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
-    // inComingStr can be any type of version
+    // If currentStr.upperBound > maxStr then return maxStr
+    // currentStr can be any type of version
     // maxStr must be ExactVersionSelector or SubVersionSelector
     static String lowerMaxVersion(String currentStr, String maxStr) {
         def current = parseSelector(currentStr)
@@ -577,10 +604,10 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (current instanceof ExactVersionSelector) {
             if (compareVersions(max.selector, current.selector) > 0)
                 return currentStr
-            else
-                return maxStr
+            return maxStr
         }
 
+        // Assume Version Range
         if (compareVersions(max.selector, current.upperBound) > 0)
             return currentStr
         maxStr
@@ -590,5 +617,30 @@ class GradleProjectPlugin implements Plugin<Project> {
     // inVersionStr can be a String of an ExactVersionSelector or VersionRangeSelector
     static boolean isVersionInOrLower(String inVersionStr, ExactVersionSelector checkVersion) {
         lowerMaxVersion(inVersionStr, checkVersion.selector) != inVersionStr
+    }
+
+    // return true if currentStr is higher than checkVersion
+    // currentStr can be any type of version
+    // checkVersion must be ExactVersionSelector or SubVersionSelector
+    static boolean isVersionInOrHigher(String currentStr, ExactVersionSelector checkVersion) {
+        def current = parseSelector(currentStr)
+        def check = parseSelector(checkVersion.selector)
+
+        if (current instanceof ExactVersionSelector)
+            return compareVersions(current.selector, check.selector) > -1
+
+        // Assume Version Range
+        compareVersions(current.upperBound, check.selector) > -1
+    }
+
+    // return true if checkVersion is less than currentVersionStr
+    // If currentVersionStr is a version range return true if checkVersion is under currentVersionStr.lowerBound
+    static boolean isVersionBelow(String currentVersionStr, ExactVersionSelector checkVersion) {
+        def current = parseSelector(currentVersionStr)
+
+        if (current instanceof ExactVersionSelector)
+            return compareVersions(current.selector, checkVersion.selector) < 0
+
+        compareVersions(current.lowerBound, checkVersion.selector) < 0
     }
 }

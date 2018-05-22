@@ -25,7 +25,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.8.4')
+            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.9.1')
         }
     }
 
@@ -242,10 +242,9 @@ class MainTest extends Specification {
     }
 
     def "GradleProjectPlugin test lowerMaxVersion"() {
-          // Used to
-          given:
-          assert GradleProjectPlugin.lowerMaxVersion("[26.0.0, 27.1.0)", "27.+") == '[26.0.0, 27.1.0)'
-      }
+        given:
+        assert GradleProjectPlugin.lowerMaxVersion("[26.0.0, 27.1.0)", "27.+") == '[26.0.0, 27.1.0)'
+    }
 
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26"() {
         when:
@@ -284,9 +283,9 @@ class MainTest extends Specification {
 
     def "Aligns support library"() {
         def compileLines = """\
-        compile 'com.android.support:appcompat-v7:25.0.0'
-        compile 'com.android.support:support-v4:26.0.0'
-        compile 'com.onesignal:OneSignal:3.6.4'
+            compile 'com.android.support:appcompat-v7:25.0.0'
+            compile 'com.android.support:support-v4:26.0.0'
+            compile 'com.onesignal:OneSignal:3.6.4'
         """
 
         when:
@@ -300,7 +299,7 @@ class MainTest extends Specification {
 
     def "OneSignal 3_8_3 with play games"() {
         def compileLines = """\
-            compile 'com.onesignal:OneSignal:[3.8.3, 3.99.99]'
+            compile 'com.onesignal:OneSignal:3.8.3'
             compile 'com.google.android.gms:play-services-games:11.8.0'
         """
 
@@ -522,6 +521,101 @@ class MainTest extends Specification {
             assert it.value.contains('com.android.support:support-v4:25.+ -> 27.0.2 (*)')
         }
     }
+
+    def 'gms and firebase 15 - Support mix minor versions keep'() {
+        def compileLines = """\
+            compile 'com.google.android.gms:play-services-base:15.0.0'
+            compile 'com.google.firebase:firebase-auth:15.1.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines,
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            // firebase-auth depends on play-services-base:[15.0.1, 16.0.0) so this bump to 15.0.1 is expected
+            assert it.value.contains('com.google.android.gms:play-services-base:15.0.0 -> 15.0.1')
+            // This will be unchanged
+            assert it.value.contains('com.google.firebase:firebase-auth:15.1.0\n')
+        }
+    }
+
+    def 'firebase 15 - keep mixed minor versions'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-ads:15.0.0'
+            compile 'com.google.firebase:firebase-perf:15.2.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            // Ensure versions are unchanged
+            assert it.value.contains('com.google.firebase:firebase-ads:15.0.0\n')
+            assert it.value.contains('com.google.firebase:firebase-perf:15.2.0\n')
+        }
+    }
+
+    def 'gms 15 - Support for 12 and 15 version'() {
+        def compileLines = """\
+            compile 'com.google.android.gms:play-services-gcm:12.0.1'
+            compile 'com.google.android.gms:play-services-analytics:15.0.2'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains("OneSignalProjectPlugin: com.google.android.gms:play-services-gcm overridden from '12.0.1' to '[15.0.0, 16.0.0)'")
+            // The range should result in the highest available exact version in the range
+            assert it.value.contains('com.google.android.gms:play-services-gcm:12.0.1 -> 15.0.1')
+
+            // This will be unchanged
+            assert it.value.contains('com.google.android.gms:play-services-analytics:15.0.2\n')
+        }
+    }
+
+
+    def 'gms and firebase 15 - With OneSignal 3.9.1'() {
+        def compileLines = """\
+            compile 'com.onesignal:OneSignal:3.9.1'
+            compile 'com.google.firebase:firebase-auth:15.1.0'
+            compile 'com.google.android.gms:play-services-analytics:15.0.2'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains("OneSignalProjectPlugin: com.google.firebase:firebase-messaging overridden from '[10.2.1, 12.1.0)' to '[15.0.0, 16.0.0)'")
+            // The range should result in the highest available exact version in the range
+            assert it.value.contains('com.google.firebase:firebase-messaging:[10.2.1, 12.1.0) -> 15.0.2')
+
+            // These should remain unchanged
+            assert it.value.contains('com.google.android.gms:play-services-analytics:15.0.2\n')
+            assert it.value.contains('com.google.firebase:firebase-auth:15.1.0\n')
+        }
+    }
+
 
     // Note: Slow 20 second test, this is doing a full build
     //   This is needed as we are making sure compile and runtime versions are not being miss aligned
