@@ -321,7 +321,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
 
-    static boolean inGroupAlignListFindByStrings(String group, String name, String version) {
+    static boolean inGroupAlignListFindByStrings(String group, String name) {
         // Only override groups we define
         def versionOverride = versionGroupAligns[group]
         if (!versionOverride)
@@ -336,7 +336,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static boolean inGroupAlignList(DependencyResolveDetails details) {
-        inGroupAlignListFindByStrings(details.requested.group, details.requested.name, details.requested.version)
+        inGroupAlignListFindByStrings(details.requested.group, details.requested.name)
     }
 
     // Compares two exact versions
@@ -422,7 +422,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
-    static void updateVersionGroupAligns(String group, String module, String version) {
+    static void updateVersionGroupAligns(String group, String version) {
         if (group == GROUP_ONESIGNAL)
             project.logger.info("OneSignal: Setting version in versionGroupAligns to: ${version}")
         updateParentOnDependencyUpgrade(group, version)
@@ -434,7 +434,9 @@ class GradleProjectPlugin implements Plugin<Project> {
         try {
            processIncomingResolutionResults(configuration)
         } catch (any) {
-            any.printStackTrace()
+            // Suppressing as some copied configurations can't be resolved yet and will throw
+            // Uncomment to debug issues
+            // any.printStackTrace()
         }
     }
 
@@ -454,13 +456,13 @@ class GradleProjectPlugin implements Plugin<Project> {
             def module = requestedArtifactParts[1]
             def version = requestedArtifactParts[2]
 
-            if (!inGroupAlignListFindByStrings(group, module, version))
+            if (!inGroupAlignListFindByStrings(group, module))
                 return
 
             String curOverrideVersion = versionGroupAligns[group]['version']
             def newVersion = acceptedOrIntersectVersion(version, curOverrideVersion)
 
-            updateVersionGroupAligns(group, module, newVersion)
+            updateVersionGroupAligns(group, newVersion)
         }
 
         // Triggers configuration.incoming.resolutionResult above
