@@ -21,7 +21,7 @@ class GradleTestTemplate {
     static def GRADLE_LATEST_VERSION = '4.7'
     static def GRADLE_OLDEST_VERSION = '2.14.1'
 
-    static def setup() {
+    static void setup() {
         gradleVersions = [
             (GRADLE_OLDEST_VERSION): 'com.android.tools.build:gradle:2.2.3',
             (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.1.2'
@@ -40,17 +40,17 @@ class GradleTestTemplate {
         ]
     }
 
-    static def createManifest(String path) {
+    static void createManifest(String path, String packageName = 'com.app.example') {
         def androidManifest = testProjectDir.newFile("${path}/AndroidManifest.xml")
-        androidManifest << '''\
+        androidManifest << """\
             <?xml version="1.0" encoding="utf-8"?>
             <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-                      package="com.app.example">
+                            package="${packageName}">
             </manifest>
-        '''.stripIndent()
+        """.stripIndent()
     }
 
-    static def createBuildFile(buildSections) {
+    static void createBuildFile(buildSections) {
         testProjectDir = new TemporaryFolder()
         testProjectDir.create()
         testProjectDir.newFolder('src', 'main')
@@ -118,20 +118,20 @@ class GradleTestTemplate {
         """\
     }
 
-    static def createSubProject(buildSections) {
+    static void createSubProject(buildSections) {
         if (buildSections['subProjectCompileLines'] == null)
             return
 
         testProjectDir.newFolder('subProject', 'src', 'main')
 
-        createManifest('subProject/src/main')
+        createManifest('subProject/src/main', 'com.app.example.subproject')
         testProjectDir.newFile('settings.gradle') << "include ':subProject'"
 
         def subProjectBuildFile = testProjectDir.newFile('subProject/build.gradle')
         subProjectBuildFile << subProjectBuildDotGradle(buildSections)
     }
 
-    static def subProjectBuildDotGradle(buildSections) {
+    static String subProjectBuildDotGradle(buildSections) {
         """\
             ${buildSections['libProjectExtras']}
             apply plugin: 'com.android.library'
@@ -153,7 +153,7 @@ class GradleTestTemplate {
         """\
     }
 
-    static def runGradleProject(Object buildParams) {
+    static Object runGradleProject(buildParams) {
         def results = [:]
 
         gradleVersions.each { gradleVersion ->
