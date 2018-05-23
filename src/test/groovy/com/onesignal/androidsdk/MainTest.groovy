@@ -621,9 +621,7 @@ class MainTest extends Specification {
     //   This is needed as we are making sure compile and runtime versions are not being miss aligned
     //   Asserts just a double check as Gradle or AGP fails to build when this happens
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26 with build tasks"() {
-        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [
-            ['build', '--info']
-        ]
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build', '--info']]
 
         when:
         def results = runGradleProject([
@@ -641,6 +639,26 @@ class MainTest extends Specification {
             //                    |- + com.google.android.gms:play-services-basement:[10.2.1,11.3.0) -> 11.2.2 ->
             //                    \---- + com.android.support:25.2.0
             assert it.value.contains("com.android.support:support-v4 overridden from '25.2.0' to '[26.0.0,26.2.0['")
+        }
+    }
+
+
+    // Note: Slow 20 second test, this is doing a full build
+    def 'Full build on project with sub project prints no errors'() {
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']]
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            subProjectCompileLines: """\
+                compile 'com.onesignal:OneSignal:3.6.4'
+            """
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert !it.value.toLowerCase().contains('failure')
         }
     }
 }
