@@ -7,12 +7,12 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.DependencyResolveDetails
 import org.gradle.api.artifacts.result.DependencyResult
-import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.VersionInfo
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionComparator
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionSelectorScheme
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.ExactVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.LatestVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.SubVersionSelector
+import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionParser
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionRangeSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionSelector
 
@@ -284,7 +284,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         String existingOverrider = moduleVersionOverrides["${details.requested.group}:${details.requested.name}"]
         overrideVersion(details, existingOverrider)
 
-        def module = MINIMUM_MODULE_VERSION_FOR_TARGET_SDK["${details.requested.group}:${details.requested.name}"]
+        def module = MINIMUM_MODULE_VERSION_FOR_TARGET_SDK["${details.requested.group}:${details.requested.name}" as String]
         if (!module)
             return
 
@@ -323,7 +323,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (!versionOverride['compileSdkVersionAlign'])
             return
 
-        def compileSdkVersion = project.android.compileSdkVersion.split('-')[1]
+        def compileSdkVersion = (project.android.compileSdkVersion as String).split('-')[1]
 
         // gradleV2PostAGPApplyFallback means we can't get a dependency tree
         //   Blindly set Android Support Library to latest supported version of compileSdkVersion as a safe default
@@ -405,8 +405,12 @@ class GradleProjectPlugin implements Plugin<Project> {
     // Returns 0 if both version are the same
     // Returns -1 inComing is older than existing
     static int compareVersions(String inComing, String existing) {
+        def versionParser = new VersionParser()
+        def inComingVersion = versionParser.transform(inComing)
+        def existingVersion = versionParser.transform(existing)
+
         def versionComparator = new DefaultVersionComparator()
-        versionComparator.compare(new VersionInfo(inComing), new VersionInfo(existing))
+        versionComparator.asVersionComparator().compare(inComingVersion, existingVersion)
     }
 
     static Object finalAlignmentRules() {
@@ -513,10 +517,10 @@ class GradleProjectPlugin implements Plugin<Project> {
     static void triggerResolutionStrategy(Configuration configuration) {
         try {
            processIncomingResolutionResults(configuration)
-        } catch (any) {
+        } catch (ignored) {
             // Suppressing as some copied configurations can't be resolved yet and will throw
             // Uncomment to debug issues
-            // any.printStackTrace()
+            // ignored.printStackTrace()
         }
     }
 
@@ -646,7 +650,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         def bothRangeSelectors = inComing instanceof VersionRangeSelector &&
                                  existing instanceof VersionRangeSelector
         if (bothRangeSelectors)
-            return mergedIntersectOrHigher(inComing, existing).selector
+            return mergedIntersectOrHigher(inComing as VersionRangeSelector, existing as VersionRangeSelector).selector
 
         def bothExactSelectors = inComing instanceof ExactVersionSelector &&
                                  existing instanceof ExactVersionSelector

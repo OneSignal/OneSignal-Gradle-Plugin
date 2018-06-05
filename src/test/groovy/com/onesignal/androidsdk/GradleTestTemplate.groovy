@@ -18,7 +18,7 @@ class GradleTestTemplate {
         minSdkVersion: 15
     ]
 
-    static def GRADLE_LATEST_VERSION = '4.7'
+    static def GRADLE_LATEST_VERSION = '4.8'
     static def GRADLE_OLDEST_VERSION = '2.14.1'
 
     static void setup() {
