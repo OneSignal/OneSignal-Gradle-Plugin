@@ -315,17 +315,64 @@ class MainTest extends Specification {
         }
     }
 
-    def "Uses support library 25 when compileSdkVersion is 25"() {
-        def compileLines = "compile 'com.android.support:support-v4:26.0.0'"
-
+    def 'Uses support library 25 when compileSdkVersion is 25'() {
         when:
-        def results = runGradleProject([compileSdkVersion: 25, compileLines: compileLines])
+        def results = runGradleProject([
+            compileSdkVersion: 25,
+            compileLines: "compile 'com.android.support:support-v4:26.0.0'"
+        ])
 
         then:
         results.each {
             assert it.value.contains('--- com.android.support:support-v4:26.0.0 -> 25.4.0')
         }
     }
+
+    def 'Uses support library 25 when compileSdkVersion is 25 - apply onesignal plugin last'() {
+        // Gradle 2.14.1 didn't support delayed plugin apply so test with 3.3
+        GradleTestTemplate.gradleVersions.remove(GRADLE_OLDEST_VERSION)
+        GradleTestTemplate.buildArgumentSets['3.3'] = GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION]
+        GradleTestTemplate.gradleVersions['3.3'] = 'com.android.tools.build:gradle:2.2.3'
+
+        when:
+        def results = runGradleProject([
+            compileSdkVersion: 25,
+            compileLines: "compile 'com.android.support:support-v4:26.0.0'",
+            // Delay apply so it is done after the AGP
+            onesignalPluginId: "id 'com.onesignal.androidsdk.onesignal-gradle-plugin' apply false",
+            applyPlugins: "apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'"
+        ])
+
+        then:
+        results.each {
+            assert it.value.contains('--- com.android.support:support-v4:26.0.0 -> 25.4.0')
+        }
+    }
+
+    def 'Uses gms 11.8.0 when googlePlayServicesVersion equals 11.8.0 - apply onesignal plugin last'() {
+        // Not used with AGP 3.0.0+
+        GradleTestTemplate.gradleVersions.remove(GRADLE_LATEST_VERSION)
+
+        // Gradle 2.14.1 didn't support delayed plugin apply so test with 3.3
+        GradleTestTemplate.gradleVersions.remove(GRADLE_OLDEST_VERSION)
+        GradleTestTemplate.buildArgumentSets['3.3'] = GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION]
+        GradleTestTemplate.gradleVersions['3.3'] = 'com.android.tools.build:gradle:2.2.3'
+
+        when:
+        def results = runGradleProject([
+            compileLines: "compile 'com.google.android.gms:play-services-gcm:12.0.1'",
+            // Delay apply so it is done after the AGP
+            onesignalPluginId: "id 'com.onesignal.androidsdk.onesignal-gradle-plugin' apply false",
+            applyPlugins: "apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'",
+            projectExts: "googlePlayServicesVersion = '11.8.0'"
+        ])
+
+        then:
+        results.each {
+            assert it.value.contains('com.google.android.gms:play-services-gcm:12.0.1 -> 11.8.0')
+        }
+    }
+
 
     def "Aligns gms and firebase"() {
         def compileLines = """\

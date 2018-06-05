@@ -16,6 +16,8 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.SubVersi
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionRangeSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionSelector
 
+import java.util.jar.Manifest
+
 // This Gradle plugin automatically fixes or notifies developer of requires changes to make the
 //    OneSignal Android SDK compatible with the app's project
 // - Automatically aligning versions across groups
@@ -118,17 +120,71 @@ class GradleProjectPlugin implements Plugin<Project> {
     static def moduleVersionOverrides
     static def moduleCopied
 
+    // If true we need to do a static version apply from project.ext
+    static boolean gradleV2PostAGPApplyFallback
+
     static boolean didUpdateOneSignalVersion
+
+    static Object getExtOverride(String prop) {
+        if (!gradleV2PostAGPApplyFallback)
+            return null
+        project.ext.has(prop) ? project.ext.get(prop) : null
+    }
 
     @Override
     void apply(Project inProject) {
         project = inProject
+        gradleV2PostAGPApplyFallback = false
+        didUpdateOneSignalVersion = false
+        moduleVersionOverrides = false
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
         moduleVersionOverrides = [:]
         moduleCopied = [:]
 
+        detectProjectState()
+
         resolutionHooksForAndroidPluginV3()
         resolutionHooksForAndroidPluginV2()
+    }
+
+    // Get the AGP plugin instance if it has been applied already
+    static Plugin appliedAndroidPlugin() {
+        Plugin androidPlugin = null
+        project.plugins.each {
+            if (it.class.name == 'com.android.build.gradle.AppPlugin' ||
+                it.class.name == 'com.android.build.gradle.LibraryPlugin') {
+                androidPlugin = it
+                return
+            }
+        }
+        androidPlugin
+    }
+
+    static void detectProjectState() {
+        def plugin = appliedAndroidPlugin()
+        if (plugin == null)
+            return
+
+        if (compareVersions(getAGPVersion(plugin), '3.0.0') == -1) {
+            project.logger.warn("WARNING: The onesignal-gradle-plugin MUST be before com.android.application!")
+            project.logger.warn("   Please put onesignal-gradle-plugin first OR update to com.android.tools.build:gradle:3.0.0 or newer!")
+
+            // In this fallback state and we can NOT get the dependency tree.
+            //   This means we will be setting safe overrides later through the resolve process
+            gradleV2PostAGPApplyFallback = true
+        }
+    }
+
+    static String getAGPVersion(Plugin plugin) {
+        try {
+            def cl = plugin.class.classLoader as URLClassLoader
+            def inputStream = cl.findResource('META-INF/MANIFEST.MF').openStream()
+            def manifest = new Manifest(inputStream)
+            return manifest.mainAttributes.getValue('Plugin-Version')
+        } catch (any) {
+            project.logger.warn("OneSignal Warning: Could not get AGP plugin version")
+        }
+        null
     }
 
     static void resolutionHooksForAndroidPluginV3() {
@@ -160,7 +216,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     // Ends up being used for part of resolution in AGP 3.0 projects
-    static void doResolutionStrategyAndroidPluginV2(Object configuration) {
+    static void doResolutionStrategyAndroidPluginV2(Configuration configuration) {
         // The Android 3.0.0 Gradle plugin resolves this before we can
         // Skip it in this case to prevent a build error
         def configName = configuration.name
@@ -269,6 +325,11 @@ class GradleProjectPlugin implements Plugin<Project> {
 
         def compileSdkVersion = project.android.compileSdkVersion.split('-')[1]
 
+        // gradleV2PostAGPApplyFallback means we can't get a dependency tree
+        //   Blindly set Android Support Library to latest supported version of compileSdkVersion as a safe default
+        if (gradleV2PostAGPApplyFallback && versionOverride['version'] == NO_REF_VERSION)
+            versionGroupAligns[GROUP_ANDROID_SUPPORT]['version'] = "${compileSdkVersion}.+"
+
         // Will only decrease version, and only when needed
         // TODO:2: Need to rerun alignment to enforce UPDATE_PARENT_ON_DEPENDENCY_UPGRADE
         versionOverride['version'] = lowerMaxVersion(
@@ -357,8 +418,27 @@ class GradleProjectPlugin implements Plugin<Project> {
             compileSdkVersionAlign(group.value)
         }
 
+        applyExtFallbackOverrides(finalVersionGroupAligns)
+
         project.logger.debug("OneSignalProjectPlugin: FINAL ALIGN PART 2: ${finalVersionGroupAligns}")
         finalVersionGroupAligns
+    }
+
+    // Normally not used, reads static fallbacks if project has AGP v2 and this plugin was applied last
+    // Reads ext.androidSupportLibVersion and ext.androidSupportLibVersion to apply this logic
+    static void applyExtFallbackOverrides(finalVersionGroupAligns) {
+        if (!gradleV2PostAGPApplyFallback)
+            return
+
+        String googlePlayServicesVersion = getExtOverride('googlePlayServicesVersion')
+        if (googlePlayServicesVersion && finalVersionGroupAligns[GROUP_GMS]['version'] == NO_REF_VERSION) {
+            finalVersionGroupAligns[GROUP_GMS]['version'] = googlePlayServicesVersion
+            finalVersionGroupAligns[GROUP_FIREBASE]['version'] = googlePlayServicesVersion
+        }
+
+        String androidSupportLibVersion = getExtOverride('androidSupportLibVersion')
+        if (androidSupportLibVersion && finalVersionGroupAligns[GROUP_ANDROID_SUPPORT]['version'] == NO_REF_VERSION)
+            finalVersionGroupAligns[GROUP_ANDROID_SUPPORT]['version'] = androidSupportLibVersion
     }
 
     // Parts of Firebase depend parts of GMS that must align to the same version
