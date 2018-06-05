@@ -22,10 +22,7 @@
 
 package com.onesignal.androidsdk;
 
-import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionComparator;
-import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.Version;
-import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionParser;
-import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionRangeSelector;
+import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.*;
 
 import java.lang.reflect.Field;
 import java.util.Comparator;
@@ -154,7 +151,8 @@ public class VersionCompatHelpers {
             return null;
         }
 
-        return new VersionRangeSelector(sb.toString(), getComparator());
+        DefaultVersionSelectorScheme versionSelectorScheme = new DefaultVersionSelectorScheme(new DefaultVersionComparator());
+        return (VersionRangeSelector)versionSelectorScheme.parseSelector(sb.toString());
     }
 
 
