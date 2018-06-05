@@ -68,8 +68,13 @@ class GradleTestTemplate {
                 }
             }
             
+            // Add local copy of this OneSignal-Gradle-Plugin to test with
             plugins {
-                id 'com.onesignal.androidsdk.onesignal-gradle-plugin'
+                ${buildSections['onesignalPluginId']}
+            }
+            
+            project.ext {
+                 ${buildSections['projectExts']}
             }
             
             allprojects {
@@ -118,6 +123,7 @@ class GradleTestTemplate {
         """\
     }
 
+    // Create subproject only if subProjectCompileLines is set
     static void createSubProject(buildSections) {
         if (buildSections['subProjectCompileLines'] == null)
             return
@@ -169,6 +175,8 @@ class GradleTestTemplate {
                 if (!buildParams['skipTargetSdkVersion'])
                   currentParams['defaultConfigExtras'] = "targetSdkVersion ${currentParams['targetSdkVersion']}"
 
+                applyOneSignalGradlePlugin(currentParams)
+
                 createBuildFile(currentParams)
                 buildFileStr = buildFileStr.replace('com.android.tools.build:gradle:XX.XX.XX', gradleVersion.value)
                 buildFile = testProjectDir.newFile('build.gradle')
@@ -190,5 +198,11 @@ class GradleTestTemplate {
         }
 
         results
+    }
+
+    // Adds plugin OneSignal-Gradle-Plugin above other plugins if no custom definition is set
+    static void applyOneSignalGradlePlugin(buildSections) {
+        if (buildSections['onesignalPluginId'] == null)
+            buildSections['onesignalPluginId'] = "id 'com.onesignal.androidsdk.onesignal-gradle-plugin'"
     }
 }
