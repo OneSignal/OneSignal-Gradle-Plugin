@@ -13,7 +13,7 @@ buildscript {
     dependencies {
         // ...
         // OneSignal-Gradle-Plugin
-        classpath 'gradle.plugin.com.onesignal:onesignal-gradle-plugin:[0.10.1, 0.99.99]'
+        classpath 'gradle.plugin.com.onesignal:onesignal-gradle-plugin:[0.10.2, 0.99.99]'
     }
 }
 ```
@@ -38,8 +38,9 @@ Applies to the following libraries:
 - Future: Other warnings and checks specific to OneSignal such as app_id and notification icons
 
 ## Compatibility
-Compatible with Gradle 2.14.1+ and AGP (Android Gradle Plugin) 2.2.3+
-* Tested up to Gradle 4.7 and AGP 3.1.2
+* Recommend using AGP 3.0.0 or newer ([Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin)) and Gradle 4.1 or newer.
+* Compatible with Gradle 2.14.1+ and AGP 2.2.3+
+* Tested up to Gradle 4.8 and AGP 3.1.2
 
 ## Change Log
 See this repository's [release tags](https://github.com/OneSignal/OneSignal-Gradle-Plugin/releases) for a complete change log.
@@ -47,6 +48,9 @@ See this repository's [release tags](https://github.com/OneSignal/OneSignal-Grad
 ## Issues
 Please create a new issue on this repository's [Github issue tracker](https://github.com/OneSignal/OneSignal-Gradle-Plugin/issues) for feature requests and bug reports related specifically to this plugin.
 For other OneSignal issues not related to this plugin please contact OneSignal support from the [OneSignal.com](https://onesignal.com) dashboard.
+
+## Troubleshooting
+You can add `--info` to `./gradlew` commands such as `./gradlew app:dependencies --info` to see log entries of version overrides being applied.
 
 ## Pull Requests
 Pull requests are welcome! Please fork, create a new branch, and open a pull request. Also please add a test to `MainTest.groovy` verify your changes.
