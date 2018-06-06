@@ -32,6 +32,10 @@ dependencies {
     compileOnly 'com.google.gms:google-services:4.0.+'
     testCompileOnly 'com.google.gms:google-services:4.0.+'
 
+    // Google's strict version matcher plugin
+    compileOnly 'com.google.android.gms:strict-version-matcher-plugin:1.0.+'
+    testCompileOnly 'com.google.android.gms:strict-version-matcher-plugin:1.0.+'
+
     testCompile gradleTestKit()
     testCompile 'junit:junit:4.12'
     testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
