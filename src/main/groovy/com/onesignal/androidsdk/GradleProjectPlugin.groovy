@@ -141,10 +141,21 @@ class GradleProjectPlugin implements Plugin<Project> {
         moduleVersionOverrides = [:]
         moduleCopied = [:]
 
+        disableGMSVersionChecks()
         detectProjectState()
 
         resolutionHooksForAndroidPluginV3()
         resolutionHooksForAndroidPluginV2()
+    }
+
+    // At fundamental level this OneSignal plugin and the gms version checks are solving the same problem
+    // Disabling the version check part of the gms plugin with their flag
+    static void disableGMSVersionChecks() {
+        project.afterEvaluate {
+            def googleServices = project.extensions.findByName('googleServices')
+            if (googleServices)
+                googleServices.config.disableVersionCheck = true
+        }
     }
 
     // Get the AGP plugin instance if it has been applied already

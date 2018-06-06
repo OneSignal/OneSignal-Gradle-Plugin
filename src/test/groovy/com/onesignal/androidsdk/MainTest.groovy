@@ -578,7 +578,7 @@ class MainTest extends Specification {
         when:
         def results = runGradleProject([
             skipGradleVersion: GRADLE_OLDEST_VERSION,
-            compileLines : compileLines,
+            compileLines : compileLines
         ])
 
         then:
@@ -590,6 +590,26 @@ class MainTest extends Specification {
             assert it.value.contains('com.google.firebase:firebase-auth:15.1.0\n')
         }
     }
+
+
+    def 'Compatible with google-services Gradle Plugin'() {
+        def compileLines = """\
+            compile 'com.google.android.gms:play-services-base:15.0.0'
+            compile 'com.google.firebase:firebase-auth:15.1.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            buildscriptDependencies: "classpath 'com.google.gms:google-services:4.0.1'",
+            applyPlugins: "apply plugin: 'com.google.gms.google-services'",
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+    }
+
 
     def 'firebase 15 - keep mixed minor versions'() {
         def compileLines = """\
