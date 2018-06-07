@@ -32,7 +32,7 @@ Applies to the following libraries:
   - `com.android.support`
 - Ensures `com.android.support` is never higher than `compileSdkVersion`
 - Ensures a compatible OneSignal SDK version for the `targetSdkVersion` you're using
-- Ensures new enought OneSignal SDK is included when `com.android.support` is upgraded
+- Ensures new enough OneSignal SDK is included when `com.android.support` is upgraded
 - Calculates intersecting range of 2 version ranges
    - Including backwards capability with Gradle 2.14.1
 - Future: Other warnings and checks specific to OneSignal such as app_id and notification icons
