@@ -59,8 +59,8 @@ class GradleTestTemplate {
         buildFileStr = """\
             buildscript {
                 repositories {
-                      jcenter()
-                      maven { url 'https://maven.google.com' }
+                    maven { url 'https://maven.google.com' }
+                    jcenter()
                 }
                 dependencies {
                     classpath 'com.android.tools.build:gradle:XX.XX.XX'
@@ -79,8 +79,8 @@ class GradleTestTemplate {
             
             allprojects {
                 repositories {
-                    jcenter()
                     maven { url 'https://maven.google.com' }
+                    jcenter()
                 }
             }
 
