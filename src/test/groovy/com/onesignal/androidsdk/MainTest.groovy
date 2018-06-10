@@ -564,8 +564,8 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains('com.android.support:cardview-v7:[26.0.0, 27.1.0) -> 27.0.2')
-            assert it.value.contains('com.android.support:support-v4:25.+ -> 27.0.2 (*)')
+            assert it.value.contains('com.android.support:cardview-v7:[26.0.0, 27.1.0) -> 26.1.0')
+            assert it.value.contains('com.android.support:support-v4:25.+ -> 26.1.0')
         }
     }
 
@@ -726,6 +726,24 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
         results.each {
             assert !it.value.toLowerCase().contains('failure')
+        }
+    }
+    def 'upgrade support library to 25 when gms is 11.2.0'() {
+        def compileLines = """\
+            compile 'com.google.android.gms:play-services-base:11.2.0'
+            compile 'com.android.support:appcompat-v7:23.0.1'
+        """
+
+        when:
+        def results = runGradleProject([
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.android.gms:play-services-base:11.2.0\n')
+            assert it.value.contains('com.android.support:appcompat-v7:23.0.1 -> 25.1.0\n')
         }
     }
 }
