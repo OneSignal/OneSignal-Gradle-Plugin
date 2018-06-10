@@ -589,7 +589,6 @@ class GradleProjectPlugin implements Plugin<Project> {
     static void updateParentOnDependencyUpgrade(String dependencyGroup, String dependencyVersion) {
         UPDATE_PARENT_ON_DEPENDENCY_UPGRADE[dependencyGroup].each { key, value ->
             def exactVersion = new ExactVersionSelector(key)
-            project.logger.info("updateParentOnDependencyUpgrade:dependencyGroup: dependencyVersion: $dependencyGroup:$dependencyVersion -> $value:$key = ${isVersionBelow(dependencyVersion, exactVersion)}")
             if (isVersionBelow(dependencyVersion, exactVersion))
                 return // == continue in each closure
 
@@ -601,7 +600,6 @@ class GradleProjectPlugin implements Plugin<Project> {
                         parentGroupVersionEntry['version'] as String
                     )
                     if (compareVersionResult != parentGroupVersionEntry['version']) {
-                        project.logger.info("compareVersionResult: $compareVersionResult != parentGroupVersionEntry['version']: ${parentGroupVersionEntry['version']}")
                         if (parentGroupEntry.key == GROUP_ONESIGNAL)
                             didUpdateOneSignalVersion = true
                         versionGroupAligns[parentGroupEntry.key]['version'] = parentGroupEntry.value
