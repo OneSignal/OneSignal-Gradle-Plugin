@@ -77,14 +77,21 @@ class GradleProjectPlugin implements Plugin<Project> {
             version: NO_REF_VERSION,
             omitModules: ['multidex', 'multidex-instrumentation'],
 
-            // Android Support Library can NOT be greater than compileSdkVersion
+            // Given a compileSdkVersion what is the maximum Android Support Library that can be used
+            // Going over the maximum version results in compile time errors
             // Example: Can't use com.android.support 26.+ when using compileSdkVersion 25
             //    The following error will be thrown in this case:
             //    "No resource found that matches the given name: attr 'android:keyboardNavigationCluster'"
-            // This doesn't enforce increasing the support library version
-            // Google does warn in Android Studio if this isn't aligned
-            //     so we might want to do the same in the future
-            compileSdkVersionAlign: true
+            // This table will only lower Android Support Versions when needed, it will never increase them
+            // Google linting says they must match but though testing we found these to be the max versions
+            compileSdkVersionMax: [
+                22: '22.+',
+                23: '25.0.+',
+                24: '25.+',
+                25: '25.+',
+                26: '27.+',
+                27: '27.+'
+            ]
         ],
 
         // Exists only for UPDATE_PARENT_ON_DEPENDENCY_UPGRADE
@@ -346,23 +353,34 @@ class GradleProjectPlugin implements Plugin<Project> {
         overrideVersion(details, toVersion)
     }
 
-    static void compileSdkVersionAlign(versionOverride) {
-        if (!versionOverride['compileSdkVersionAlign'])
+    static void compileSdkVersionDependencyLimits(versionOverride) {
+        def maxSupportVersionObj = versionOverride['compileSdkVersionMax'] as Map<Integer, String>
+        if (!maxSupportVersionObj)
             return
 
-        def compileSdkVersion = (project.android.compileSdkVersion as String).split('-')[1]
+        def compileSdkVersion = (project.android.compileSdkVersion as String).split('-')[1].toInteger()
+        String maxSupportVersion = maxSupportVersionObj[compileSdkVersion]
+        if (!maxSupportVersion) {
+            maxSupportVersion = "$compileSdkVersion.+"
+            project.logger.warn("OneSignalPlugin: $compileSdkVersion not found in maxSupportVersion rules list.\n" +
+                "Assuming max safe default of '$maxSupportVersion' for 'com.android.support'")
+        }
+
+        def currentOverride = versionOverride['version'] as String
 
         // gradleV2PostAGPApplyFallback means we can't get a dependency tree
         //   Blindly set Android Support Library to latest supported version of compileSdkVersion as a safe default
-        if (gradleV2PostAGPApplyFallback && versionOverride['version'] == NO_REF_VERSION)
-            versionGroupAligns[GROUP_ANDROID_SUPPORT]['version'] = "${compileSdkVersion}.+"
+        if (gradleV2PostAGPApplyFallback && currentOverride == NO_REF_VERSION)
+            versionGroupAligns[GROUP_ANDROID_SUPPORT]['version'] = maxSupportVersion
 
         // Will only decrease version, and only when needed
         // TODO:2: Need to rerun alignment to enforce UPDATE_PARENT_ON_DEPENDENCY_UPGRADE
-        versionOverride['version'] = lowerMaxVersion(
-            versionOverride['version'] as String,
-            "${compileSdkVersion}.+"
-        )
+        def newMaxVersion = lowerMaxVersion(currentOverride, maxSupportVersion)
+
+        if (newMaxVersion != currentOverride)
+            project.logger.warn("OneSignalPlugin: Downgraded 'com.android.support:$currentOverride' -> $newMaxVersion" +
+                " to prevent compile errors! Recommend updating your project's compileSdkVersion!")
+        versionOverride['version'] = newMaxVersion
     }
     
     static void overrideVersion(DependencyResolveDetails details, String resolvedVersion) {
@@ -446,7 +464,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         def finalVersionGroupAligns = InternalUtils.deepcopy(versionGroupAligns)
         alignAcrossGroups(finalVersionGroupAligns)
         finalVersionGroupAligns.each { group ->
-            compileSdkVersionAlign(group.value)
+            compileSdkVersionDependencyLimits(group.value)
         }
 
         applyExtFallbackOverrides(finalVersionGroupAligns)
