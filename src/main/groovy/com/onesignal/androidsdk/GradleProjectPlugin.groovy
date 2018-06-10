@@ -148,6 +148,11 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static boolean didUpdateOneSignalVersion
 
+    enum WarningType {
+        SUPPORT_DOWNGRADE
+    }
+    static Map<WarningType, Boolean> shownWarnings
+
     static Object getExtOverride(String prop) {
         if (!gradleV2PostAGPApplyFallback)
             return null
@@ -163,6 +168,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
         moduleVersionOverrides = [:]
         moduleCopied = [:]
+        shownWarnings = [:]
 
         disableGMSVersionChecks()
         detectProjectState()
@@ -215,10 +221,17 @@ class GradleProjectPlugin implements Plugin<Project> {
             def inputStream = cl.findResource('META-INF/MANIFEST.MF').openStream()
             def manifest = new Manifest(inputStream)
             return manifest.mainAttributes.getValue('Plugin-Version')
-        } catch (any) {
+        } catch (ignore) {
             project.logger.warn("OneSignal Warning: Could not get AGP plugin version")
         }
         null
+    }
+
+    static void warnOnce(WarningType type, String msg) {
+        if (shownWarnings[type])
+            return
+        shownWarnings[type] = true
+        project.logger.warn("OneSignalPlugin: WARNING: $msg")
     }
 
     static void resolutionHooksForAndroidPluginV3() {
@@ -380,9 +393,13 @@ class GradleProjectPlugin implements Plugin<Project> {
         // TODO:2: Need to rerun alignment to enforce UPDATE_PARENT_ON_DEPENDENCY_UPGRADE
         def newMaxVersion = lowerMaxVersion(currentOverride, maxSupportVersion)
 
-        if (newMaxVersion != currentOverride)
-            project.logger.warn("OneSignalPlugin: Downgraded 'com.android.support:$currentOverride' -> $newMaxVersion" +
-                " to prevent compile errors! Recommend updating your project's compileSdkVersion!")
+        if (newMaxVersion != currentOverride) {
+            warnOnce(
+                WarningType.SUPPORT_DOWNGRADE,
+                "OneSignalPlugin: Downgraded 'com.android.support:$currentOverride' -> $newMaxVersion" +
+                    " to prevent compile errors! Recommend updating your project's compileSdkVersion!"
+            )
+        }
         versionOverride['version'] = newMaxVersion
     }
     
