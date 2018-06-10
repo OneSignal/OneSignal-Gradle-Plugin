@@ -229,11 +229,19 @@ class GradleProjectPlugin implements Plugin<Project> {
                     return
 
                 doResolutionStrategyAndroidPluginV3(variant.compileConfiguration)
+                doResolutionStrategyAndroidPluginV3(variant.runtimeConfiguration)
+                doResolutionStrategyAndroidPluginV3(variant.annotationProcessorConfiguration)
             }
         }
     }
 
     static void resolutionHooksForAndroidPluginV2() {
+        project.configurations.all { configuration ->
+            project.dependencies {
+                doResolutionStrategyAndroidPluginV2(configuration)
+            }
+        }
+
         project.configurations.all { configuration ->
             project.afterEvaluate {
                 if (isAndroidPluginV3())
@@ -241,23 +249,20 @@ class GradleProjectPlugin implements Plugin<Project> {
                 generateHighestVersionsForGroups(configuration)
                 doResolutionStrategyAndroidPluginV2(configuration)
             }
-
-            // AGP 3.0 - Still needed to catch Android specific tasks, <buildType>CompileClasspath
-            project.dependencies {
-                doResolutionStrategyAndroidPluginV2(configuration)
-            }
         }
     }
 
-    // Ends up being used for part of resolution in AGP 3.0 projects
     static void doResolutionStrategyAndroidPluginV2(Configuration configuration) {
         // The Android 3.0.0 Gradle plugin resolves this before we can
-        // Skip it in this case to prevent a build error
-        def configName = configuration.name
-        if (configName.endsWith('WearApp') || configName.endsWith('wearApp'))
+        //   Skip it in this case to prevent a build error
+        if (configuration.name.with { endsWith('WearApp') || endsWith('wearApp')} )
             return
 
         configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            // Soonest we can do this check, as project.android won't be available before
+            if (isAndroidPluginV3())
+                return
+
             // The Android 2.14.1 plugin doesn't work with doTargetSdkVersionAlign
             //   We are not able to get the targetSDK version in this case.
 
@@ -269,19 +274,17 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
-    static void doResolutionStrategyAndroidPluginV3(Configuration configuration) {
-        generateHighestVersionsForGroups(configuration)
+    static void doResolutionStrategyAndroidPluginV3(Configuration compileConfiguration) {
+        generateHighestVersionsForGroups(compileConfiguration)
 
-        configuration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            projectVariants().all { variant ->
-                doTargetSdkVersionAlign(details)
+        compileConfiguration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            doTargetSdkVersionAlign(details)
 
-                project.configurations.all { Configuration config ->
-                    generateHighestVersionsForGroups(config)
-                }
-
-                doGroupAlignStrategyOnDetail(details)
+            project.configurations.all { Configuration configuration ->
+                generateHighestVersionsForGroups(configuration)
             }
+
+            doGroupAlignStrategyOnDetail(details)
         }
     }
 
