@@ -109,8 +109,13 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static final def UPDATE_PARENT_ON_DEPENDENCY_UPGRADE = [
         (GROUP_ANDROID_SUPPORT): [
-            27: [
+            '27.0.0': [
                 (GROUP_ONESIGNAL): '3.7.0'
+            ]
+        ],
+        (GROUP_GMS): [
+            '11.2.0': [
+                (GROUP_ANDROID_SUPPORT): '25.1.0'
             ]
         ]
     ]
@@ -572,7 +577,9 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static void updateParentOnDependencyUpgrade(String dependencyGroup, String dependencyVersion) {
         UPDATE_PARENT_ON_DEPENDENCY_UPGRADE[dependencyGroup].each { key, value ->
-            if (!isVersionInOrLower(dependencyVersion, new ExactVersionSelector("${key}.0.0}")))
+            def exactVersion = new ExactVersionSelector(key)
+            project.logger.info("updateParentOnDependencyUpgrade:dependencyGroup: dependencyVersion: $dependencyGroup:$dependencyVersion -> $value:$key = ${isVersionBelow(dependencyVersion, exactVersion)}")
+            if (isVersionBelow(dependencyVersion, exactVersion))
                 return // == continue in each closure
 
             value.each { parentGroupEntry ->
@@ -583,12 +590,15 @@ class GradleProjectPlugin implements Plugin<Project> {
                         parentGroupVersionEntry['version'] as String
                     )
                     if (compareVersionResult != parentGroupVersionEntry['version']) {
-                        didUpdateOneSignalVersion = true
+                        project.logger.info("compareVersionResult: $compareVersionResult != parentGroupVersionEntry['version']: ${parentGroupVersionEntry['version']}")
+                        if (parentGroupEntry.key == GROUP_ONESIGNAL)
+                            didUpdateOneSignalVersion = true
                         versionGroupAligns[parentGroupEntry.key]['version'] = parentGroupEntry.value
                     }
                 }
                 else {
-                    didUpdateOneSignalVersion = true
+                    if (parentGroupEntry.key == GROUP_ONESIGNAL)
+                        didUpdateOneSignalVersion = true
                     versionGroupAligns[parentGroupEntry.key] = [version: parentGroupEntry.value]
                 }
             }
