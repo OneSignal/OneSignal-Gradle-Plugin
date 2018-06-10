@@ -50,6 +50,33 @@ class GradleTestTemplate {
         """.stripIndent()
     }
 
+    // Don't warn on any android specific classes.
+    // Used to detect build errors with out of date support library
+    // Needed for the 'Find min-support for Firebase and GMS - build' Test
+    static void createProguardFile() {
+        def proguardFile = testProjectDir.newFile("proguard-rules.pro")
+        proguardFile << '''
+           -dontwarn android.content.pm.**
+           -dontwarn android.app.**
+           -dontwarn android.content.**
+           -dontwarn android.os.**
+           -dontwarn android.graphics.**
+           -dontwarn com.google.protobuf.**
+           -dontwarn android.view.**
+           -dontwarn android.media.**
+           -dontwarn android.widget.**
+           -dontwarn android.text.**
+           -dontwarn android.service.**
+           -dontwarn android.net.**
+           
+            # Had to omit the whole class. Keeps complaining about android.os.IBinder getBinder()
+            #   Warning: android.support.v4.app.JobIntentService$JobServiceEngineImpl:
+            #            can't find referenced method 'android.os.IBinder getBinder()'
+            #              in program class android.support.v4.app.JobIntentService$JobServiceEngineImpl
+            -dontwarn android.support.v4.app.JobIntentService$JobServiceEngineImpl
+        '''.stripIndent()
+    }
+
     static void createBuildFile(buildSections) {
         testProjectDir = new TemporaryFolder()
         testProjectDir.create()
@@ -102,9 +129,16 @@ class GradleTestTemplate {
 
                     ${buildSections['defaultConfigExtras']}
                 }
+
+                lintOptions {
+                    abortOnError false
+                }
                 
                 buildTypes {
-                    debug { }
+                    debug {
+                        minifyEnabled true
+                        proguardFiles 'proguard-rules.pro'
+                    }
                 }
 
                 ${buildSections['androidSectionExtras']}
@@ -183,6 +217,7 @@ class GradleTestTemplate {
                 buildFile << buildFileStr
 
                 createSubProject(currentParams)
+                createProguardFile()
 
                 def result =
                     GradleRunner.create()

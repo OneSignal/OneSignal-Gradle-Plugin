@@ -746,4 +746,26 @@ class MainTest extends Specification {
             assert it.value.contains('com.android.support:appcompat-v7:23.0.1 -> 25.1.0\n')
         }
     }
+    // Run manually search for "Warning:".
+    //    If a support library class is listed
+    //      then the support library needs to be updated for the firebase / GMS version
+    def 'Find min-support for Firebase and GMS - build'() {
+        GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['transformClassesAndResourcesWithProguardForDebug', '--info']]
+        when:
+        // Keep as '+' for latest when checking in to this fails when Google changes requirements
+        def gms_version = '+'
+        def results = runGradleProject([
+            compileLines: """
+                compile 'com.google.android.gms:play-services-base:$gms_version'
+                compile 'com.google.android.gms:play-services-gcm:$gms_version'
+                compile 'com.google.android.gms:play-services-maps:$gms_version'
+                compile 'com.google.firebase:firebase-messaging:+'
+                compile 'com.android.support:appcompat-v7:22.0.0'
+            """,
+            skipGradleVersion: GRADLE_LATEST_VERSION
+        ])
+
+        then:
+        assert results // Assert success
+    }
 }
