@@ -114,8 +114,19 @@ class GradleProjectPlugin implements Plugin<Project> {
             ]
         ],
         (GROUP_GMS): [
+            '8.4.0': [
+                (GROUP_ANDROID_SUPPORT): '22.2.1'
+            ],
             '11.2.0': [
                 (GROUP_ANDROID_SUPPORT): '25.1.0'
+            ],
+            '11.8.0': [
+                (GROUP_ANDROID_SUPPORT): '26.0.0'
+            ]
+        ],
+        (GROUP_FIREBASE): [
+            '9.8.0': [
+                (GROUP_ANDROID_SUPPORT): '24.1.0'
             ]
         ]
     ]
