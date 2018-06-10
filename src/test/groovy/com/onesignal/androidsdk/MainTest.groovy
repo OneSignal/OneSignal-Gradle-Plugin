@@ -746,6 +746,61 @@ class MainTest extends Specification {
             assert it.value.contains('com.android.support:appcompat-v7:23.0.1 -> 25.1.0\n')
         }
     }
+
+    def 'When compileSdkVersion is 22 cap android.support at 22.2.1'() {
+        when:
+        def results = runGradleProject([
+            compileSdkVersion: 22,
+            compileLines: '''
+                compile 'com.android.support:support-v4:25.0.0'
+                compile 'com.android.support:appcompat-v7:25.0.0'
+            ''',
+            skipGradleVersion: GRADLE_OLDEST_VERSION
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.android.support:support-v4:25.0.0 -> 22.2.1\n')
+        }
+    }
+
+    def 'When compileSdkVersion is 23 cap android.support at 25.0.1'() {
+        when:
+        def results = runGradleProject([
+            compileSdkVersion: 23,
+            compileLines: '''
+                compile 'com.android.support:support-v4:26.0.0'
+                compile 'com.android.support:appcompat-v7:26.0.0'
+            ''',
+            skipGradleVersion: GRADLE_OLDEST_VERSION
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.android.support:support-v4:26.0.0 -> 25.0.1\n')
+        }
+    }
+
+    // Note: Run manually to find the min compileSdkVersion for each support version
+    def 'Find min-support version for compileSdkVersion'() {
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['compileDebugSources']]
+
+        when:
+        def results = runGradleProject([
+            compileSdkVersion: 27,
+            compileLines: '''
+                compile 'com.android.support:support-v4:+'
+                compile 'com.android.support:appcompat-v7:+'
+            ''',
+            skipGradleVersion: GRADLE_OLDEST_VERSION
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+    }
+
     // Run manually search for "Warning:".
     //    If a support library class is listed
     //      then the support library needs to be updated for the firebase / GMS version
