@@ -55,8 +55,6 @@ class GradleProjectPlugin implements Plugin<Project> {
     static final String GROUP_FIREBASE = 'com.google.firebase'
     static final String GROUP_ONESIGNAL = 'com.onesignal'
 
-    static final String MODULE_ONESIGNAL_SDK = 'com.onesignal:OneSignal'
-
     // Default version to indicate no current dependency references
     static final String NO_REF_VERSION = '0.0.0'
 
@@ -107,10 +105,8 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     // Update the following module versions to a compatible version for their target SDK
     static final def MINIMUM_MODULE_VERSION_FOR_TARGET_SDK = [
-        (MODULE_ONESIGNAL_SDK): [
-            targetSdkVersion: [
-                26: '3.6.3'
-            ]
+        (GROUP_ONESIGNAL): [
+            26: '3.6.3'
         ]
     ]
 
@@ -140,7 +136,6 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static def versionGroupAligns
     static Project project
-    static def moduleVersionOverrides
     static def moduleCopied
 
     // If true we need to do a static version apply from project.ext
@@ -164,9 +159,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         project = inProject
         gradleV2PostAGPApplyFallback = false
         didUpdateOneSignalVersion = false
-        moduleVersionOverrides = false
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
-        moduleVersionOverrides = [:]
         moduleCopied = [:]
         shownWarnings = [:]
 
@@ -287,16 +280,15 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
-    static void doResolutionStrategyAndroidPluginV3(Configuration compileConfiguration) {
-        generateHighestVersionsForGroups(compileConfiguration)
+    // Calculates versions alignment and applies it to all configurations
+    static void doResolutionStrategyAndroidPluginV3(Configuration lazyConfiguration) {
+        // Step 1. Generate a versionGroupAligns Map for all configurations
+        project.configurations.all { configuration ->
+            generateHighestVersionsForGroups(configuration)
+        }
 
-        compileConfiguration.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            doTargetSdkVersionAlign(details)
-
-            project.configurations.all { Configuration configuration ->
-                generateHighestVersionsForGroups(configuration)
-            }
-
+        // Step 2. Apply version overrides to configurations
+        lazyConfiguration.resolutionStrategy.eachDependency { details ->
             doGroupAlignStrategyOnDetail(details)
         }
     }
@@ -317,9 +309,9 @@ class GradleProjectPlugin implements Plugin<Project> {
         projectVariants().all { variant ->
             def mergedFlavor = variant.mergedFlavor
             // Use targetSdkVersion unless null, fallback is minSdkVersion, 1 the static fallback
-            if (mergedFlavor.targetSdkVersion != null)
+            if (mergedFlavor.targetSdkVersion)
                 targetSdkVersion = mergedFlavor.targetSdkVersion.apiLevel
-            else if (mergedFlavor.minSdkVersion != null)
+            else if (mergedFlavor.minSdkVersion)
                 targetSdkVersion = mergedFlavor.minSdkVersion.apiLevel
             else
                 targetSdkVersion = 1
@@ -328,35 +320,25 @@ class GradleProjectPlugin implements Plugin<Project> {
         targetSdkVersion
     }
 
-    // Checks the MINIMUM_MODULE_VERSION_FOR_TARGET_SDK hash to see if the module needs to be updated
-    //   for the projects current targetSdkVersion
-    static void doTargetSdkVersionAlign(DependencyResolveDetails details) {
-        String existingOverrider = moduleVersionOverrides["${details.requested.group}:${details.requested.name}"]
-        overrideVersion(details, existingOverrider)
-
-        def module = MINIMUM_MODULE_VERSION_FOR_TARGET_SDK["${details.requested.group}:${details.requested.name}" as String]
-        if (!module)
+    // Based on android.targetSdkVersion, upgrade any groups that to meet compatibility
+    static void doTargetSdkVersionAlign() {
+        def curSdkVersion = getCurrentTargetSdkVersion()
+        if (curSdkVersion == 0)
             return
 
-        projectVariants().all { variant ->
-            def curSdkVersion = getCurrentTargetSdkVersion()
-            if (curSdkVersion == 0)
+        MINIMUM_MODULE_VERSION_FOR_TARGET_SDK.each { groupKey, targetSdkMap ->
+            def curVersion = versionGroupAligns[groupKey]['version'] as String
+            if (!curVersion || curVersion == NO_REF_VERSION)
                 return
 
-            def curVersion = details.requested.version
-            String newVersion = null
-            module['targetSdkVersion'].each { key, value ->
-                if (curSdkVersion < key)
+            targetSdkMap.each { limitTargetSdkVersion, groupVersion ->
+                if (curSdkVersion < limitTargetSdkVersion)
                     return
-
-                newVersion = acceptedOrIntersectVersion(value as String, newVersion ?: curVersion)
-            }
-
-            if (newVersion != null && newVersion != curVersion) {
-                project.logger.info("Changing OneSignal for TargetSdkVersion. ${curVersion} -> ${newVersion}")
-                moduleVersionOverrides["${details.requested.group}:${details.requested.name}"] = newVersion
-                versionGroupAligns[details.requested.group] = [version: newVersion]
-                overrideVersion(details, newVersion)
+                def newVersion = acceptedOrIntersectVersion(groupVersion, curVersion)
+                if (newVersion != curVersion) {
+                    project.logger.info("Changing OneSignal for TargetSdkVersion. ${curVersion} -> ${newVersion}")
+                    versionGroupAligns[groupKey] = [version: newVersion]
+                }
             }
         }
     }
@@ -547,8 +529,6 @@ class GradleProjectPlugin implements Plugin<Project> {
         forceCanBeResolved(configCopy)
 
         configCopy.resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-            doTargetSdkVersionAlign(details)
-
             if (!inGroupAlignList(details))
                 return
 
@@ -612,7 +592,10 @@ class GradleProjectPlugin implements Plugin<Project> {
             def newVersion = acceptedOrIntersectVersion(version, curOverrideVersion)
 
             updateVersionGroupAligns(group, newVersion)
-        }
+        }.every({
+            // This every block runs after the closure above
+            doTargetSdkVersionAlign()
+        })
 
         // Triggers configuration.incoming.resolutionResult above
         // Rethrow on failures if any issues
