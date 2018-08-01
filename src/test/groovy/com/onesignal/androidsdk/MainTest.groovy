@@ -25,7 +25,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.9.1')
+            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.10.0')
         }
     }
 
@@ -683,6 +683,64 @@ class MainTest extends Specification {
         }
     }
 
+    def 'when firebase-core:16 and firebase-messaging:15.0.2 upgrade to firebase-messaging:17.0.0'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-messaging:15.0.2'
+            compile 'com.google.firebase:firebase-core:16.0.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.firebase:firebase-messaging:15.0.2 -> 17.0.0')
+        }
+    }
+
+    def 'when firebase-core:16 and firebase-messaging:12.0.0 upgrade to firebase-messaging:17.0.0'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-messaging:12.0.0'
+            compile 'com.google.firebase:firebase-core:16.0.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.firebase:firebase-messaging:12.0.0 -> 17.0.0')
+        }
+    }
+
+
+    def 'when firebase-core:16 and firebase-messaging:17.1.0 keep as firebase-messaging:17.1.0'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-messaging:17.1.0'
+            compile 'com.google.firebase:firebase-core:16.0.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.firebase:firebase-messaging:17.1.0\n')
+        }
+    }
+
 
     // Note: Slow 20 second test, this is doing a full build
     //   This is needed as we are making sure compile and runtime versions are not being miss aligned
@@ -783,6 +841,26 @@ class MainTest extends Specification {
         }
     }
 
+
+    def 'When compileSdkVersion is 23 cap android.support at 25.0.1 even when gms 11.8.0'() {
+        when:
+        def results = runGradleProject([
+            compileSdkVersion: 23,
+            compileLines: '''
+                compile 'com.android.support:support-v4:26.0.0'
+                compile 'com.google.android.gms:play-services-gcm:11.8.0'
+            ''',
+            skipGradleVersion: GRADLE_OLDEST_VERSION
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.android.support:support-v4:26.0.0 -> 25.0.1\n')
+        }
+    }
+
+
     // Note: Run manually to find the min compileSdkVersion for each support version
     def 'Find min-support version for compileSdkVersion'() {
         GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['compileDebugSources']]
@@ -818,6 +896,28 @@ class MainTest extends Specification {
                 compile 'com.android.support:appcompat-v7:22.0.0'
             """,
             skipGradleVersion: GRADLE_LATEST_VERSION
+        ])
+
+        then:
+        assert results // Assert success
+    }
+
+
+    // Run manually search for "Warning:".
+    //    If a support library class is listed
+    //      then the support library needs to be updated for the firebase / GMS version
+    def 'test core and messaging - build'() {
+//        GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['transformClassesAndResourcesWithProguardForDebug', '--info']]
+//        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['dependencies', '--configuration', 'debugCompileClasspath', '--info']]
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build', '--info']]
+        when:
+        def results = runGradleProject([
+            compileLines: """
+                compile 'com.android.support:appcompat-v7:26.0.0'
+                compile 'com.google.firebase:firebase-messaging:15.0.2'
+                compile 'com.google.firebase:firebase-core:16.0.0'
+            """,
+            skipGradleVersion: GRADLE_OLDEST_VERSION
         ])
 
         then:
