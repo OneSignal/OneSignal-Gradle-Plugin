@@ -18,6 +18,9 @@ class GradleTestTemplate {
         minSdkVersion: 15
     ]
 
+    // Set to '--info' or '--stacktrace' to debug issues
+    static def GRADLE_LOG_LEVEL = null
+
     static def GRADLE_LATEST_VERSION = '4.8'
     static def GRADLE_OLDEST_VERSION = '2.14.1'
 
@@ -29,13 +32,13 @@ class GradleTestTemplate {
 
         buildArgumentSets = [
             (GRADLE_OLDEST_VERSION): [
-                ['dependencies', '--configuration', 'compile', '--info'],
-                ['dependencies', '--configuration', '_debugCompile', '--info']
+                ['dependencies', '--configuration', 'compile', GRADLE_LOG_LEVEL],
+                ['dependencies', '--configuration', '_debugCompile', GRADLE_LOG_LEVEL]
             ],
             (GRADLE_LATEST_VERSION): [
                 // compile does not work on it's own for tests since we use variant.compileConfiguration
-                ['dependencies', '--configuration', 'compile', '--info'],
-                ['dependencies', '--configuration', 'debugCompileClasspath', '--info'] //  '--stacktrace'
+                ['dependencies', '--configuration', 'compile', GRADLE_LOG_LEVEL],
+                ['dependencies', '--configuration', 'debugCompileClasspath', GRADLE_LOG_LEVEL] //  '--stacktrace'
             ]
         ]
     }
@@ -225,6 +228,8 @@ class GradleTestTemplate {
 //                    return
 //                currentParams['onesignalPluginId'] = "id 'com.onesignal.androidsdk.onesignal-gradle-plugin' apply false"
 //                currentParams['applyPlugins'] = "apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'"
+
+                buildArguments.removeAll([null])
 
                 def result =
                     GradleRunner.create()
