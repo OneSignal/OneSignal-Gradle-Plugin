@@ -403,7 +403,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.android.support:support-v4 overridden from \'+\' to \'27.+\'')
+            assert it.value.contains('com.android.support:support-v4:+ -> 27.1.1')
         }
     }
 
@@ -647,7 +647,6 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains("OneSignalProjectPlugin: com.google.android.gms:play-services-gcm overridden from '12.0.1' to '[15.0.0, 16.0.0)'")
             // The range should result in the highest available exact version in the range
             assert it.value.contains('com.google.android.gms:play-services-gcm:12.0.1 -> 15.0.1')
 
@@ -673,7 +672,6 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains("OneSignalProjectPlugin: com.google.firebase:firebase-messaging overridden from '[10.2.1, 12.1.0)' to '[15.0.0, 16.0.0)'")
             // The range should result in the highest available exact version in the range
             assert it.value.contains('com.google.firebase:firebase-messaging:[10.2.1, 12.1.0) -> 15.0.2')
 
