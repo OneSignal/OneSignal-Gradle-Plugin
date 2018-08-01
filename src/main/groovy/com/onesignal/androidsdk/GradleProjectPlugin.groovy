@@ -136,7 +136,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         ]
     ]
 
-    static final Map<String, Object> MODULE_DEPENDENCY_MINIMUMS = [
+    static final Map<String, Map<String, Map<String, String>>> MODULE_DEPENDENCY_MINIMUMS = [
         'com.google.firebase:firebase-core': [
             '16.0.0': [
                 'com.google.firebase:firebase-messaging': '17.0.0'
@@ -149,8 +149,8 @@ class GradleProjectPlugin implements Plugin<Project> {
     static void generateMinModulesToTrackStatic() {
         MODULES_MINIMUMS_TO_TRACK = [:]
         MODULE_DEPENDENCY_MINIMUMS.each { parentModule, parentVersion ->
-            parentVersion.each {
-                MODULES_MINIMUMS_TO_TRACK[it.key] = true
+            parentVersion.each { childModule, _childVersion ->
+                MODULES_MINIMUMS_TO_TRACK[childModule] = true
             }
         }
     }
@@ -641,8 +641,9 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void updateVersionModuleAligns(String group, String module, String version) {
-        String inputModule = "$group:$module"
+        def inputModule = "$group:$module"
 
+        // 1. Sets or updates versionModuleAligns of modules we need to enforce min versions on
         if (MODULES_MINIMUMS_TO_TRACK[inputModule]) {
             def curOverrideVersion = versionModuleAligns[inputModule]
             if (curOverrideVersion) {
@@ -656,15 +657,14 @@ class GradleProjectPlugin implements Plugin<Project> {
                 versionModuleAligns[inputModule] = [version: version]
         }
 
-
+        // 2. When we get a dependent version value parent's to a min version if needed
         def rule = MODULE_DEPENDENCY_MINIMUMS[inputModule]
-
-        rule.each {
-            def exactVersion = new ExactVersionSelector(it.key as String)
+        rule.each { parentVersion, dependentChildMinVersion ->
+            def exactVersion = new ExactVersionSelector(parentVersion)
             if (isVersionBelow(version, exactVersion))
                 return // == continue in each closure
 
-            it.value.each { parentModuleEntry ->
+            dependentChildMinVersion.each { parentModuleEntry ->
                 def parentModuleVersionEntry = versionModuleAligns[parentModuleEntry.key]
 
                 if (parentModuleVersionEntry != null) {
