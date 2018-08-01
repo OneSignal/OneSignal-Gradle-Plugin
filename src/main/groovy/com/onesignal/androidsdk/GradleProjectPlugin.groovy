@@ -223,7 +223,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (plugin == null)
             return
 
-        if (compareVersions(getAGPVersion(plugin), '3.0.0') == -1) {
+        if (isAGPVersionOlderThan(plugin, '3.0.0')) {
             project.logger.warn("WARNING: The onesignal-gradle-plugin MUST be before com.android.application!")
             project.logger.warn("   Please put onesignal-gradle-plugin first OR update to com.android.tools.build:gradle:3.0.0 or newer!")
 
@@ -233,15 +233,24 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
+    static boolean isAGPVersionOlderThan(Plugin plugin, String version) {
+        def agpVersion = getAGPVersion(plugin)
+        if (!agpVersion) {
+            if (project)
+                project.logger.warn('OneSignal Warning: Could not get AGP plugin version')
+            return false
+        }
+
+        compareVersions(agpVersion, version) == -1
+    }
+
     static String getAGPVersion(Plugin plugin) {
         try {
             def cl = plugin.class.classLoader as URLClassLoader
             def inputStream = cl.findResource('META-INF/MANIFEST.MF').openStream()
             def manifest = new Manifest(inputStream)
             return manifest.mainAttributes.getValue('Plugin-Version')
-        } catch (ignore) {
-            project.logger.warn("OneSignal Warning: Could not get AGP plugin version")
-        }
+        } catch (ignore) {}
         null
     }
 
