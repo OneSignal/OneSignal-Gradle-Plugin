@@ -912,7 +912,7 @@ class MainTest extends Specification {
     def 'test core and messaging - build'() {
 //        GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['transformClassesAndResourcesWithProguardForDebug', '--info']]
 //        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['dependencies', '--configuration', 'debugCompileClasspath', '--info']]
-        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build', '--info']]
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']] // , '--info']]
         when:
         def results = runGradleProject([
             compileLines: """
