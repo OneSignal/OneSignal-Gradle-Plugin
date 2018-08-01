@@ -246,6 +246,11 @@ class MainTest extends Specification {
         assert GradleProjectPlugin.lowerMaxVersion("[26.0.0, 27.1.0)", "27.+") == '[26.0.0, 27.1.0)'
     }
 
+    def 'isAGPVersionOlderThan should thrown when getAGPVersion is null'() {
+        given:
+        GradleProjectPlugin.isAGPVersionOlderThan(null, '3.0.0')
+    }
+
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26"() {
         when:
         def results = runGradleProject([
