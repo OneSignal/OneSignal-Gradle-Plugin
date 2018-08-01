@@ -98,6 +98,8 @@ class GradleProjectPlugin implements Plugin<Project> {
         ]
     ]
 
+    static final def GOOGLE_SEMANTIC_EXACT_VERSION = new ExactVersionSelector('15.0.0')
+
     // Skip these groups when they are the parent when generating versionGroupAligns
     //   - This for example prevents GMS's dependency on Android Support from locking Android Support
     //     to a lower or higher version
@@ -134,9 +136,30 @@ class GradleProjectPlugin implements Plugin<Project> {
         ]
     ]
 
+    static final Map<String, Object> MODULE_DEPENDENCY_MINIMUMS = [
+        'com.google.firebase:firebase-core': [
+            '16.0.0': [
+                'com.google.firebase:firebase-messaging': '17.0.0'
+            ]
+        ]
+    ]
+
+    // List containing all child entries of MODULE_DEPENDENCY_MINIMUMS
+    static Map<String, Boolean> MODULES_MINIMUMS_TO_TRACK
+    static void generateMinModulesToTrackStatic() {
+        MODULES_MINIMUMS_TO_TRACK = [:]
+        MODULE_DEPENDENCY_MINIMUMS.each { parentModule, parentVersion ->
+            parentVersion.each {
+                MODULES_MINIMUMS_TO_TRACK[it.key] = true
+            }
+        }
+    }
+
+    static Map<String, Object> versionModuleAligns = [:]
+
     static def versionGroupAligns
     static Project project
-    static def moduleCopied
+    static def copiedModules
 
     // If true we need to do a static version apply from project.ext
     static boolean gradleV2PostAGPApplyFallback
@@ -160,8 +183,10 @@ class GradleProjectPlugin implements Plugin<Project> {
         gradleV2PostAGPApplyFallback = false
         didUpdateOneSignalVersion = false
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
-        moduleCopied = [:]
+        copiedModules = [:]
         shownWarnings = [:]
+
+        generateMinModulesToTrackStatic()
 
         disableGMSVersionChecks()
         detectProjectState()
@@ -320,7 +345,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         targetSdkVersion
     }
 
-    // Based on android.targetSdkVersion, upgrade any groups that to meet compatibility
+    // Based on android.targetSdkVersion, upgrade any groups to meet compatibility
     static void doTargetSdkVersionAlign() {
         def curSdkVersion = getCurrentTargetSdkVersion()
         if (curSdkVersion == 0)
@@ -386,36 +411,47 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
     
     static void overrideVersion(DependencyResolveDetails details, String resolvedVersion) {
-        // Omit NULLs
-        if (resolvedVersion == null)
-            return
+        def group = details.requested.group
+        def name = details.requested.name
+        def version = details.requested.version
 
-        // Omit override if never set a non-default version
-        if (resolvedVersion == NO_REF_VERSION)
-            return
+        def moduleOverride = versionModuleAligns["$group:$name"]
 
-        // Omit override if no change
-        if (details.requested.version == resolvedVersion)
-            return
-
-        // Special Google rule if going from pre-15's non-semantic versions to 15+'s semantic versions
-        def newGoogleVersion = new ExactVersionSelector('15.0.0')
-        def isGoogleLibrary = details.requested.group == GROUP_GMS || details.requested.group == GROUP_FIREBASE
-        def hasAlignOver15 = isVersionInOrHigher(versionGroupAligns[GROUP_GMS]['version'] as String, newGoogleVersion) ||
-                             isVersionInOrHigher(versionGroupAligns[GROUP_FIREBASE]['version'] as String, newGoogleVersion)
+        // 1. Special Google rule if going from pre-15's non-semantic versions to 15+'s semantic versions
+        def isGoogleLibrary = group == GROUP_GMS || group == GROUP_FIREBASE
+        def hasAlignOver15 = isVersionInOrHigher(versionGroupAligns[GROUP_GMS]['version'] as String, GOOGLE_SEMANTIC_EXACT_VERSION) ||
+                             isVersionInOrHigher(versionGroupAligns[GROUP_FIREBASE]['version'] as String, GOOGLE_SEMANTIC_EXACT_VERSION)
         if (isGoogleLibrary && hasAlignOver15) {
             // These Google license libraries were dropped in 15.0.0+, omit them
-            if (details.requested.name ==~ /firebase-.*-license/ ||
-                details.requested.name ==~ /play-services-.*-license/)
+            if (name ==~ /firebase-.*-license/ ||
+                name ==~ /play-services-.*-license/)
                 return
 
             // If the requested version is under 15 increase to version range that will include other libraries
-            if (isVersionBelow(details.requested.version, newGoogleVersion))
+            if (isVersionBelow(version, GOOGLE_SEMANTIC_EXACT_VERSION))
                 resolvedVersion = '[15.0.0, 16.0.0)'
             // The requested version is higher or contains 15.0.0 don't override
-            else if (isVersionInOrHigher(details.requested.version, newGoogleVersion))
+            else if (!moduleOverride && isVersionInOrHigher(version, GOOGLE_SEMANTIC_EXACT_VERSION))
                 return
         }
+
+        // 2. Handle overriding specific modules
+        if (moduleOverride) {
+            if (resolvedVersion == null || resolvedVersion == NO_REF_VERSION)
+                resolvedVersion = version
+            resolvedVersion = acceptedOrIntersectVersion(
+                moduleOverride['version'] as String,
+                resolvedVersion
+            )
+        }
+
+        // 3. Omit if no value
+        if (resolvedVersion == null || resolvedVersion == NO_REF_VERSION)
+            return
+
+        // 4. Omit override if no change
+        if (version == resolvedVersion)
+            return
 
         logModuleOverride(details, resolvedVersion)
         details.useVersion(resolvedVersion)
@@ -460,10 +496,10 @@ class GradleProjectPlugin implements Plugin<Project> {
         versionComparator.asVersionComparator().compare(inComingVersion, existingVersion)
     }
 
-    static Object finalAlignmentRules() {
-        project.logger.debug("OneSignalProjectPlugin: FINAL ALIGN PART 1: ${versionGroupAligns}")
+    static Map<String, Object> finalAlignmentRules() {
+        project.logger.info("OneSignalProjectPlugin: FINAL ALIGN PART 1: ${versionGroupAligns}")
 
-        def finalVersionGroupAligns = InternalUtils.deepcopy(versionGroupAligns)
+        def finalVersionGroupAligns = InternalUtils.deepcopy(versionGroupAligns) as Map<String, Object>
         alignAcrossGroups(finalVersionGroupAligns)
         finalVersionGroupAligns.each { group ->
             compileSdkVersionDependencyLimits(group.value)
@@ -519,9 +555,9 @@ class GradleProjectPlugin implements Plugin<Project> {
     static void generateHighestVersionsForGroups(Configuration configuration) {
         // Prevent duplicate runs for the same configuration name
         //   Fixes infinite calls when multiDexEnabled is set
-        if (moduleCopied[configuration.name])
+        if (copiedModules[configuration.name])
             return
-        moduleCopied[configuration.name] = true
+        copiedModules[configuration.name] = true
 
         didUpdateOneSignalVersion = false
 
@@ -571,10 +607,6 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static void processIncomingResolutionResults(Configuration configuration) {
         configuration.incoming.resolutionResult.allDependencies.each { DependencyResult dependencyResult ->
-            // Ignore Google's inner dependencies when deciding on what version align groups with
-            if (shouldSkipCalcIfParent(dependencyResult))
-                return
-
             def requestedArtifactParts = dependencyResult.requested.displayName.split(':')
 
             // String did't contain all parts, most likely a project result so skip
@@ -584,6 +616,12 @@ class GradleProjectPlugin implements Plugin<Project> {
             def group = requestedArtifactParts[0]
             def module = requestedArtifactParts[1]
             def version = requestedArtifactParts[2]
+
+            updateVersionModuleAligns(group, module, version)
+
+            // Ignore Google's inner dependencies when deciding on what version align groups with
+            if (shouldSkipCalcIfParent(dependencyResult))
+                return
 
             if (!inGroupAlignListFindByStrings(group, module))
                 return
@@ -600,6 +638,47 @@ class GradleProjectPlugin implements Plugin<Project> {
         // Triggers configuration.incoming.resolutionResult above
         // Rethrow on failures if any issues
         configuration.resolvedConfiguration.rethrowFailure()
+    }
+
+    static void updateVersionModuleAligns(String group, String module, String version) {
+        String inputModule = "$group:$module"
+
+        if (MODULES_MINIMUMS_TO_TRACK[inputModule]) {
+            def curOverrideVersion = versionModuleAligns[inputModule]
+            if (curOverrideVersion) {
+                curOverrideVersion['version'] =
+                    acceptedOrIntersectVersion(
+                        version,
+                        curOverrideVersion['version'] as String
+                    )
+            }
+            else
+                versionModuleAligns[inputModule] = [version: version]
+        }
+
+
+        def rule = MODULE_DEPENDENCY_MINIMUMS[inputModule]
+
+        rule.each {
+            def exactVersion = new ExactVersionSelector(it.key as String)
+            if (isVersionBelow(version, exactVersion))
+                return // == continue in each closure
+
+            it.value.each { parentModuleEntry ->
+                def parentModuleVersionEntry = versionModuleAligns[parentModuleEntry.key]
+
+                if (parentModuleVersionEntry != null) {
+                    def compareVersionResult = acceptedOrIntersectVersion(
+                        parentModuleEntry.value as String,
+                        parentModuleVersionEntry['version'] as String
+                    )
+                    if (compareVersionResult != parentModuleVersionEntry['version'])
+                        versionModuleAligns[parentModuleEntry.key]['version'] = parentModuleEntry.value
+                }
+                else
+                    versionModuleAligns[parentModuleEntry.key] = [version: parentModuleEntry.value]
+            }
+        }
     }
 
     static boolean shouldSkipCalcIfParent(DependencyResult result) {

@@ -68,6 +68,7 @@ class GradleTestTemplate {
            -dontwarn android.text.**
            -dontwarn android.service.**
            -dontwarn android.net.**
+           -dontwarn android.support.annotation.**
            
             # Had to omit the whole class. Keeps complaining about android.os.IBinder getBinder()
             #   Warning: android.support.v4.app.JobIntentService$JobServiceEngineImpl:
@@ -218,6 +219,12 @@ class GradleTestTemplate {
 
                 createSubProject(currentParams)
                 createProguardFile()
+
+                // Test running gradle plugin last on newest version of Gradle only
+//                if (gradleVersion.key == GRADLE_OLDEST_VERSION)
+//                    return
+//                currentParams['onesignalPluginId'] = "id 'com.onesignal.androidsdk.onesignal-gradle-plugin' apply false"
+//                currentParams['applyPlugins'] = "apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'"
 
                 def result =
                     GradleRunner.create()
