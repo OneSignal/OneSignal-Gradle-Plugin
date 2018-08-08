@@ -45,7 +45,7 @@ dependencies {
 
 
 group = 'com.onesignal'
-version = '0.11.1'
+version = '0.11.2'
 description 'OneSignal Gradle Plugin'
 // Run to upload a new version to the Gradle Plugin Portal
 // ./gradlew publishPlugins
