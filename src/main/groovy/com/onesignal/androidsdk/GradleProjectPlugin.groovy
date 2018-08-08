@@ -50,6 +50,8 @@ import java.util.jar.Manifest
 
 class GradleProjectPlugin implements Plugin<Project> {
 
+    static final VERSION_SELECTOR_SCHEME = new DefaultVersionSelectorScheme(new DefaultVersionComparator())
+
     static final String GROUP_GMS = 'com.google.android.gms'
     static final String GROUP_ANDROID_SUPPORT = 'com.android.support'
     static final String GROUP_FIREBASE = 'com.google.firebase'
@@ -618,7 +620,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         configuration.incoming.resolutionResult.allDependencies.each { DependencyResult dependencyResult ->
             def requestedArtifactParts = dependencyResult.requested.displayName.split(':')
 
-            // String did't contain all parts, most likely a project result so skip
+            // String didn't contain all parts, most likely a project result so skip
             if (requestedArtifactParts.size() < 3)
                 return
 
@@ -728,19 +730,20 @@ class GradleProjectPlugin implements Plugin<Project> {
     //   * Turns SubVersionSelector and LatestVersionSelector into ExactVersionSelector
     //   * Turns single range entries of [1.0.0] into ExactVersionSelector
     static VersionSelector parseSelector(String version) {
-        def versionComparator = new DefaultVersionComparator()
-        def versionSelectorScheme  = new DefaultVersionSelectorScheme(versionComparator)
-        def versionSelector = versionSelectorScheme.parseSelector(version)
+        if (version == '+')
+            version = 'latest.release'
+
+        final versionSelector = VERSION_SELECTOR_SCHEME.parseSelector(version)
 
         // Turns VersionRangeSelector with a single value into ExactVersionSelector Example: [1.0.0]
         if (versionSelector instanceof VersionRangeSelector) {
             if (versionSelector.lowerBound == versionSelector.upperBound &&
                 versionSelector.lowerInclusive && versionSelector.upperInclusive)
-                return versionSelectorScheme.parseSelector(versionSelector.upperBound)
+                return VERSION_SELECTOR_SCHEME.parseSelector(versionSelector.upperBound)
         }
         // Turn + into a safe highest possible segment value of 9999
         if (versionSelector instanceof SubVersionSelector)
-            return versionSelectorScheme.parseSelector(version.replace('+', '9999'))
+            return VERSION_SELECTOR_SCHEME.parseSelector(version.replace('+', '9999'))
 
         if (versionSelector instanceof LatestVersionSelector)
             return new ExactVersionSelector('9999.9999.9999')
@@ -804,7 +807,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (inComing instanceof VersionRangeSelector) {
             if (inComing.accept(existing.selector))
                 return existingStr
-            else if (compareVersions(inComing.lowerBound, existingStr) > 0)
+            else if (compareVersions(inComing.lowerBound, existing.selector) > 0)
                 return inComingStr
             else
                 return existingStr
@@ -812,7 +815,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         else {
             if (existing.accept(inComing.selector))
                 return inComingStr
-            else if (compareVersions(inComingStr, existing.upperBound) > 0)
+            else if (compareVersions(inComing.selector, existing.upperBound) > 0)
                 return inComingStr
             else
                 return existingStr
