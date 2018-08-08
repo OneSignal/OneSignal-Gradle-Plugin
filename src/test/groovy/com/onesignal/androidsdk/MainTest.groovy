@@ -25,7 +25,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.10.0')
+            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.10.1')
         }
     }
 
@@ -170,6 +170,14 @@ class MainTest extends Specification {
         assertAcceptedOrIntersectVersion('1.+', '2.+', '2.+')
         assertAcceptedOrIntersectVersion('1.0.+', '2.0.+', '2.0.+')
         assertAcceptedOrIntersectVersion('1.+', '1.0.+', '1.+')
+        assertAcceptedOrIntersectVersion('+', '1.0.0', '+')
+
+        // # Latest with all other version types
+        assertAcceptedOrIntersectVersion('+', '12.0.0', '+')
+        assertAcceptedOrIntersectVersion('+', '12.0.+', '+')
+        assertAcceptedOrIntersectVersion('+', '12.+', '+')
+        assertAcceptedOrIntersectVersion('+', '[11.0.0, 12.0.0]', '+')
+        assertAcceptedOrIntersectVersion('+', '[10.2.1, 12.1.0)', '+')
 
         // # Version Range & Exact versions = Use exact if in or above range
         // ## Between range = Narrowing Upper
@@ -805,6 +813,27 @@ class MainTest extends Specification {
         results.each {
             assert it.value.contains('com.google.android.gms:play-services-base:11.2.0\n')
             assert it.value.contains('com.android.support:appcompat-v7:23.0.1 -> 25.1.0\n')
+        }
+    }
+
+    def 'firebase-core latest select valid dependent module versions'() {
+        def compileLines = """\
+            compile "com.onesignal:OneSignal:3.9.1"
+            compile "com.google.firebase:firebase-core:+"
+        """
+
+        when:
+        def results = runGradleProject([
+            compileLines : compileLines,
+            skipGradleVersion: GRADLE_OLDEST_VERSION
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            // Checking for any fail but this is the case it is catching
+            //   com.google.firebase:firebase-measurement-connector:16.0.0 -> [10.2.1,12.1.0[ FAILED
+            assert !it.value.contains('FAILED\n')
         }
     }
 
