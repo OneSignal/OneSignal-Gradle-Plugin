@@ -100,6 +100,11 @@ class GradleProjectPlugin implements Plugin<Project> {
         ]
     ]
 
+
+    // Is com.google.android.gms:play-services included in the project?
+    // If so we will limit gms and firebase to 12.0.1 as this it's last version
+    static boolean hasFullPlayServices
+
     static final def GOOGLE_SEMANTIC_EXACT_VERSION = new ExactVersionSelector('15.0.0')
 
     // Skip these groups when they are the parent when generating versionGroupAligns
@@ -182,6 +187,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     @Override
     void apply(Project inProject) {
         project = inProject
+        hasFullPlayServices = false
         gradleV2PostAGPApplyFallback = false
         didUpdateOneSignalVersion = false
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
@@ -438,8 +444,12 @@ class GradleProjectPlugin implements Plugin<Project> {
                 name ==~ /play-services-.*-license/)
                 return
 
+            // Means this project has com.google.android.gms:play-services
+            // As another option it might be possible to include all part of `com.google.android.gms` instead
+            if (hasFullPlayServices)
+                resolvedVersion = '12.0.1'
             // If the requested version is under 15 increase to version range that will include other libraries
-            if (isVersionBelow(version, GOOGLE_SEMANTIC_EXACT_VERSION))
+            else if (isVersionBelow(version, GOOGLE_SEMANTIC_EXACT_VERSION))
                 resolvedVersion = '[15.0.0, 16.0.0)'
             // The requested version is higher or contains 15.0.0 don't override
             else if (!moduleOverride && isVersionInOrHigher(version, GOOGLE_SEMANTIC_EXACT_VERSION))
@@ -690,6 +700,9 @@ class GradleProjectPlugin implements Plugin<Project> {
                     versionModuleAligns[parentModuleEntry.key] = [version: parentModuleEntry.value]
             }
         }
+
+        if (group == GROUP_GMS && module == 'play-services')
+            hasFullPlayServices = true
     }
 
     static boolean shouldSkipCalcIfParent(DependencyResult result) {

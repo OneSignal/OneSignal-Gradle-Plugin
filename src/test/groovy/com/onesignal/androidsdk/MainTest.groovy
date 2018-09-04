@@ -386,6 +386,24 @@ class MainTest extends Specification {
         }
     }
 
+    def 'Upper limit com.google.android.gms:play-services:12.0.1'() {
+        def compileLines = """\
+        compile 'com.google.android.gms:play-services:12.0.1'
+        compile 'com.google.android.gms:play-services-location:15.0.0'
+        compile 'com.google.firebase:firebase-core:15.0.0'
+        """
+
+        when:
+        def results = runGradleProject([compileLines: compileLines,
+                                        skipGradleVersion: GRADLE_OLDEST_VERSION])
+
+        then:
+        results.each {
+            assert it.value.contains('com.google.android.gms:play-services:12.0.1\n')
+            assert it.value.contains('com.google.android.gms:play-services-location:15.0.0 -> 12.0.1')
+            assert it.value.contains('com.google.firebase:firebase-core:15.0.0 -> 12.0.1')
+        }
+    }
 
     def "Aligns gms and firebase"() {
         def compileLines = """\
