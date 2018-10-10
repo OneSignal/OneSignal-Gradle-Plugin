@@ -25,7 +25,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.10.1')
+            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.10.2')
         }
     }
 
@@ -728,6 +728,30 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
         results.each {
             assert it.value.contains('com.google.firebase:firebase-messaging:15.0.2 -> 17.0.0')
+        }
+    }
+
+    // TODO:*: Future, should step through all versions to discover limits automatically
+    // This also covers case when firebase-core:16.0.4, as it depends on firebase-iid:17.0.3
+    def 'when firebase-core:16.0.4 and firebase-messaging:15.0.2 upgrade to firebase-messaging:17.3.1'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-messaging:15.0.2'
+            compile 'com.google.firebase:firebase-iid:17.0.3'
+        """
+
+        // Can enable the following to do a build with proguard to find minimum versions
+        // GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']] // , '--info']]
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.firebase:firebase-messaging:15.0.2 -> 17.3.1')
         }
     }
 
