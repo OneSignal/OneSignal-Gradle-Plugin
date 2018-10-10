@@ -27,7 +27,8 @@ class GradleTestTemplate {
     static void setup() {
         gradleVersions = [
             (GRADLE_OLDEST_VERSION): 'com.android.tools.build:gradle:2.2.3',
-            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.2.1'
+         // (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.2.1'
+            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.3.0-beta01'
         ]
 
         buildArgumentSets = [
@@ -39,6 +40,7 @@ class GradleTestTemplate {
                 // compile does not work on it's own for tests since we use variant.compileConfiguration
                 ['dependencies', '--configuration', 'compile', GRADLE_LOG_LEVEL],
                 ['dependencies', '--configuration', 'debugCompileClasspath', GRADLE_LOG_LEVEL] //  '--stacktrace'
+//                ['dependencyInsight', '--dependency', 'com.google.firebase', '--configuration', 'debugCompileClasspath', GRADLE_LOG_LEVEL]
             ]
         ]
     }
