@@ -15,9 +15,9 @@ apply plugin: 'java-library'
 
 // Run the following to update the lockfiles
 //     ./gradlew dependencies --write-locks
-configurations.all {
-    it.resolutionStrategy.activateDependencyLocking()
-}
+//configurations.all {
+//    it.resolutionStrategy.activateDependencyLocking()
+//}
 
 dependencies {
     compile gradleApi()
@@ -25,8 +25,8 @@ dependencies {
 
     // These are compileOnly just so we can inspect these classes in IntelliJ
     // Android Gradle Plugin (AGP)
-    compileOnly 'com.android.tools.build:gradle:3.2.+'
-    testCompileOnly 'com.android.tools.build:gradle:3.2.+'
+    compileOnly 'com.android.tools.build:gradle:3.3.0-beta01'
+    testCompileOnly 'com.android.tools.build:gradle:3.3.0-beta01'
 
     // Google Play Services Gradle Plugin
     compileOnly 'com.google.gms:google-services:4.0.+'
