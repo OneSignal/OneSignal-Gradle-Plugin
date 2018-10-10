@@ -222,7 +222,12 @@ class GradleProjectPlugin implements Plugin<Project> {
         detectProjectState()
 
         resolutionHooksForAndroidPluginV3()
-        resolutionHooksForAndroidPluginV2()
+
+        // Breaks AGP 3.3.0+ so skipping this AGP V2 method call.
+        // Checking Gradle version instead of AGP versions as it won't be loaded yet.
+        // This high of a Gradle version would not normally be used
+        if (compareVersions(project.gradle.gradleVersion, '4.10.0') == -1)
+            resolutionHooksForAndroidPluginV2()
     }
 
     // At fundamental level this OneSignal plugin and the gms version checks are solving the same problem
@@ -292,16 +297,24 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void resolutionHooksForAndroidPluginV3() {
+        // Can use this instead of 'project.afterEvaluate'
+        // project.gradle.projectsEvaluated { gradle ->  // gradle.allprojects {
+        // However this does not work for library projects
         project.afterEvaluate {
+            // variant only includes 'release' and 'debug'
             projectVariants().all { variant ->
                 // compileConfiguration is new in AGP 3.0.0
                 if (!variant.hasProperty('compileConfiguration'))
                     return
 
-                doResolutionStrategyAndroidPluginV3(variant.compileConfiguration)
+                // TODO: Remove this after testing
+                // project.ext['android.injected.build.model.only'] = true
+
                 doResolutionStrategyAndroidPluginV3(variant.runtimeConfiguration)
+                doResolutionStrategyAndroidPluginV3(variant.compileConfiguration)
                 doResolutionStrategyAndroidPluginV3(variant.annotationProcessorConfiguration)
             }
+            doResolutionStrategyAndroidPluginV3_3()
         }
     }
 
@@ -347,6 +360,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     // Calculates versions alignment and applies it to all configurations
     static void doResolutionStrategyAndroidPluginV3(Configuration lazyConfiguration) {
         // Step 1. Generate a versionGroupAligns Map for all configurations
+        // TODO: Look into only running once instead of per variant
         project.configurations.all { configuration ->
             generateHighestVersionsForGroups(configuration)
         }
@@ -354,6 +368,20 @@ class GradleProjectPlugin implements Plugin<Project> {
         // Step 2. Apply version overrides to configurations
         lazyConfiguration.resolutionStrategy.eachDependency { details ->
             doGroupAlignStrategyOnDetail(details)
+        }
+    }
+
+    static void doResolutionStrategyAndroidPluginV3_3() {
+        project.configurations.all { configuration ->
+            // Config may start with debug or release
+            if (configuration.name.with {
+                endsWith('AndroidTestRuntimeClasspath') ||
+                endsWith('AndroidTestCompileClasspath')
+            }) {
+                configuration.resolutionStrategy.eachDependency { details ->
+                    doGroupAlignStrategyOnDetail(details)
+                }
+            }
         }
     }
 
@@ -448,7 +476,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
         versionOverride['version'] = newMaxVersion
     }
-    
+
     static void overrideVersion(DependencyResolveDetails details, String resolvedVersion) {
         def group = details.requested.group
         def name = details.requested.name
@@ -497,7 +525,16 @@ class GradleProjectPlugin implements Plugin<Project> {
             return
 
         logModuleOverride(details, resolvedVersion)
+
+        // This '+' version check works for now but...
+        // TODO: Do not let group override (resolvedVersion) override moduleOverride
+        // TODO: Create a test reproducing the problem in 3.2.1
+        if (resolvedVersion == '+')
+            return
+
         details.useVersion(resolvedVersion)
+        if (details.respondsTo('because'))
+            details.because('OneSignal override')
     }
 
     static void logModuleOverride(DependencyResolveDetails details, String resolvedVersion) {
@@ -540,7 +577,8 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static Map<String, Object> finalAlignmentRules() {
-        project.logger.info("OneSignalProjectPlugin: FINAL ALIGN PART 1: ${versionGroupAligns}")
+        project.logger.info("OneSignalProjectPlugin: FINAL ALIGN PART 1: Groups : ${versionGroupAligns}")
+        project.logger.info("OneSignalProjectPlugin: FINAL ALIGN PART 1: Modules: ${versionModuleAligns}")
 
         def finalVersionGroupAligns = InternalUtils.deepcopy(versionGroupAligns) as Map<String, Object>
         alignAcrossGroups(finalVersionGroupAligns)
@@ -596,6 +634,20 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void generateHighestVersionsForGroups(Configuration configuration) {
+        // Skipping configurations to fix the following error
+        // > Cannot create variant 'android-manifest-metadata' after configuration ':debugApiElements' has been resolved
+        if (configuration.name.with {
+              endsWith('AndroidTestRuntimeClasspath') ||
+              endsWith('AndroidTestAnnotationProcessorClasspath') ||
+              endsWith('AnnotationProcessor') ||
+              endsWith('AndroidTestCompileClasspath') ||
+              endsWith('CompileClasspath') ||
+              endsWith('UnitTestRuntimeClasspath') ||
+              endsWith('UnitTestCompileClasspath') ||
+              endsWith('wearApp')
+        })
+            return
+
         // Prevent duplicate runs for the same configuration name
         //   Fixes infinite calls when multiDexEnabled is set
         if (copiedModules[configuration.name])

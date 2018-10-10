@@ -524,7 +524,6 @@ class MainTest extends Specification {
         GradleTestTemplate.gradleVersions['3.3'] = 'com.android.tools.build:gradle:2.3.3'
 
         GradleTestTemplate.buildArgumentSets.remove(GRADLE_OLDEST_VERSION)
-
         GradleTestTemplate.buildArgumentSets['3.3'] = [
             ['dependencies', '--configuration', 'compile', '--info'],
             ['dependencies', '--configuration', '_sandboxDebugCompile', '--info']
@@ -580,6 +579,7 @@ class MainTest extends Specification {
         }
     }
 
+    // TODO: Does NOT work with project.gradle.projectsEvaluated
     def "support sub library projects"() {
         when:
         def results = runGradleProject([
