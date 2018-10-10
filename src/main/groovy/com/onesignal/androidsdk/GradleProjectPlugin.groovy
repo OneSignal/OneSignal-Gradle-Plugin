@@ -119,6 +119,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         ]
     ]
 
+    // Similar to MODULE_DEPENDENCY_MINIMUMS but applied at the group level.
     static final def UPDATE_PARENT_ON_DEPENDENCY_UPGRADE = [
         (GROUP_ANDROID_SUPPORT): [
             '27.0.0': [
@@ -143,10 +144,27 @@ class GradleProjectPlugin implements Plugin<Project> {
         ]
     ]
 
+    // Summary: Map of modules with a map of versions if are at or higher then update the list of modules.
+    // Solves: Issue where a sub dependency of a module can be updated to a version that is incompatible
+    //         to a parent modules.
+    // Example: firebase-iid:16.2.0 and firebase-messaging:17.0.0 causes a runtime crash of
+    //    class not found. While scanning dependencies when we find firebase-iid:16.2.0
+    //    we will update firebase-messaging to 17.1.0 to fix this issue.
     static final Map<String, Map<String, Map<String, String>>> MODULE_DEPENDENCY_MINIMUMS = [
         'com.google.firebase:firebase-core': [
             '16.0.0': [
                 'com.google.firebase:firebase-messaging': '17.0.0'
+            ]
+        ],
+        'com.google.firebase:firebase-iid': [
+            '16.2.0': [
+                'com.google.firebase:firebase-messaging': '17.1.0'
+            ],
+            '17.0.0': [
+                'com.google.firebase:firebase-messaging': '17.3.0'
+            ],
+            '17.0.1': [
+                'com.google.firebase:firebase-messaging': '17.3.1'
             ]
         ]
     ]
@@ -162,7 +180,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
-    static Map<String, Object> versionModuleAligns = [:]
+    static Map<String, Object> versionModuleAligns
 
     static def versionGroupAligns
     static Project project
@@ -193,6 +211,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
         copiedModules = [:]
         shownWarnings = [:]
+        versionModuleAligns = [:]
 
         generateMinModulesToTrackStatic()
 
