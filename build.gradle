@@ -45,7 +45,7 @@ dependencies {
 
 
 group = 'com.onesignal'
-version = '0.11.2'
+version = '0.11.3'
 description 'OneSignal Gradle Plugin'
 // Run to upload a new version to the Gradle Plugin Portal
 // ./gradlew publishPlugins
@@ -97,6 +97,6 @@ uploadArchives {
 //      maven { url uri('../../repo') }
 // 3. Update '../../repo' from above to your correct relative path
 // 4. Add to buildscript -> dependencies
-//      classpath 'com.onesignal:onesignal-gradle-plugin:[0.11.0, 0.99.99]'
+//      classpath 'com.onesignal:onesignal-gradle-plugin:[0.11.3, 0.99.99]'
 // 5. To your app/build.gradle add
 //      apply plugin: com.onesignal.androidsdk.GradleProjectPlugin
