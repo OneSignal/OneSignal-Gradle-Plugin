@@ -90,7 +90,8 @@ class GradleProjectPlugin implements Plugin<Project> {
                 24: '25.+',
                 25: '25.+',
                 26: '27.+',
-                27: '27.+'
+                27: '27.+',
+                28: '28.+'
             ]
         ],
 
