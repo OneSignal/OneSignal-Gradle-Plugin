@@ -40,7 +40,7 @@ Applies to the following libraries:
 ## Compatibility
 * Recommend using AGP 3.0.0 or newer ([Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin)) and Gradle 4.1 or newer.
 * Compatible with Gradle 2.14.1+ and AGP 2.2.3+
-* Tested up to Gradle 4.9 and AGP 3.1.4
+* Tested up to Gradle 4.10.2 and AGP 3.2.1
 
 ## Change Log
 See this repository's [release tags](https://github.com/OneSignal/OneSignal-Gradle-Plugin/releases) for a complete change log.
