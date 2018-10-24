@@ -525,13 +525,13 @@ class MainTest extends Specification {
 
         GradleTestTemplate.buildArgumentSets.remove(GRADLE_OLDEST_VERSION)
         GradleTestTemplate.buildArgumentSets['3.3'] = [
-            ['dependencies', '--configuration', 'compile', '--info'],
-            ['dependencies', '--configuration', '_sandboxDebugCompile', '--info']
+            ['dependencies', '--configuration', 'compile'],
+            ['dependencies', '--configuration', '_sandboxDebugCompile']
         ]
 
         GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [
-            ['dependencies', '--configuration', 'compile', '--info'],
-            ['dependencies', '--configuration', 'sandboxDebugCompileClasspath', '--info']
+            ['dependencies', '--configuration', 'compile'],
+            ['dependencies', '--configuration', 'sandboxDebugCompileClasspath']
         ]
 
         def compileLines = """\
@@ -799,7 +799,7 @@ class MainTest extends Specification {
     //   This is needed as we are making sure compile and runtime versions are not being miss aligned
     //   Asserts just a double check as Gradle or AGP fails to build when this happens
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26 with build tasks"() {
-        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build', '--info']]
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']]
 
         when:
         def results = runGradleProject([
@@ -811,13 +811,6 @@ class MainTest extends Specification {
 
         then:
         assert results // Asserting existence and contains 1+ entries
-        results.each {
-            assert it.value.contains("com.onesignal:OneSignal overridden from '3.5.+' to '3.6.3'")
-            // 25.2.0 comes from; + com.onesignal:OneSignal:3.6.3 ->
-            //                    |- + com.google.android.gms:play-services-basement:[10.2.1,11.3.0) -> 11.2.2 ->
-            //                    \---- + com.android.support:25.2.0
-            assert it.value.contains("com.android.support:support-v4 overridden from '25.2.0' to '[26.0.0,26.2.0['")
-        }
     }
 
 
@@ -957,7 +950,7 @@ class MainTest extends Specification {
     //    If a support library class is listed
     //      then the support library needs to be updated for the firebase / GMS version
     def 'Find min-support for Firebase and GMS - build'() {
-        GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['transformClassesAndResourcesWithProguardForDebug', '--info']]
+        GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['transformClassesAndResourcesWithProguardForDebug']]
         when:
         // Keep as '+' for latest when checking in to this fails when Google changes requirements
         def gms_version = '+'
