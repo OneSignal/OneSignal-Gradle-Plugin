@@ -15,9 +15,9 @@ apply plugin: 'java-library'
 
 // Run the following to update the lockfiles
 //     ./gradlew dependencies --write-locks
-//configurations.all {
-//    it.resolutionStrategy.activateDependencyLocking()
-//}
+configurations.all {
+    it.resolutionStrategy.activateDependencyLocking()
+}
 
 dependencies {
     compile gradleApi()
