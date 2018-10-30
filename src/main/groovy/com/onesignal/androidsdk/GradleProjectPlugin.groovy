@@ -167,6 +167,16 @@ class GradleProjectPlugin implements Plugin<Project> {
             '17.0.1': [
                 'com.google.firebase:firebase-messaging': '17.3.1'
             ]
+        ],
+        'com.google.android.gms:play-services-measurement-base': [
+            '15.0.4': [
+                'com.google.firebase:firebase-analytics': '16.0.0'
+            ]
+        ],
+        'com.google.android.gms:play-services-basement': [
+            '16.0.1': [
+                'com.google.firebase:firebase-messaging': '17.3.3'
+            ]
         ]
     ]
 
@@ -477,11 +487,12 @@ class GradleProjectPlugin implements Plugin<Project> {
         versionOverride['version'] = newMaxVersion
     }
 
-    static void overrideVersion(DependencyResolveDetails details, String resolvedVersion) {
+    static void overrideVersion(DependencyResolveDetails details, String groupVersionOverride) {
         def group = details.requested.group
         def name = details.requested.name
         def version = details.requested.version
 
+        String resolvedVersion = null
         def moduleOverride = versionModuleAligns["$group:$name"]
 
         // 1. Special Google rule if going from pre-15's non-semantic versions to 15+'s semantic versions
@@ -515,6 +526,8 @@ class GradleProjectPlugin implements Plugin<Project> {
                 resolvedVersion
             )
         }
+        else if (resolvedVersion == null)
+            resolvedVersion = groupVersionOverride
 
         // 3. Omit if no value
         if (resolvedVersion == null || resolvedVersion == NO_REF_VERSION)
