@@ -751,7 +751,7 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains('com.google.firebase:firebase-messaging:15.0.2 -> 17.3.1')
+            assert it.value.contains('com.google.firebase:firebase-messaging:15.0.2 -> 17.3.3')
         }
     }
 
@@ -794,6 +794,43 @@ class MainTest extends Specification {
         }
     }
 
+    def 'when play-services-measurement-base:15.0.4 upgrade to firebase-analytics:16.0.0'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-analytics:15.0.2'
+            compile 'com.google.android.gms:play-services-measurement-base:15.0.4'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.firebase:firebase-analytics:15.0.2 -> 16.0.0')
+        }
+    }
+
+    def 'when play-services-basement:16.0.1 upgrade to firebase-messaging:17.3.3'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-messaging:17.0.0'
+            compile 'com.google.android.gms:play-services-basement:16.0.1'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.firebase:firebase-messaging:17.0.0 -> 17.3.3')
+        }
+    }
 
     // Note: Slow 20 second test, this is doing a full build
     //   This is needed as we are making sure compile and runtime versions are not being miss aligned
