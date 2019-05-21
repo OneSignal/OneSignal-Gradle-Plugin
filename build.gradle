@@ -25,8 +25,8 @@ dependencies {
 
     // These are compileOnly just so we can inspect these classes in IntelliJ
     // Android Gradle Plugin (AGP)
-    compileOnly 'com.android.tools.build:gradle:3.3.0-beta01'
-    testCompileOnly 'com.android.tools.build:gradle:3.3.0-beta01'
+    compileOnly 'com.android.tools.build:gradle:3.3.0'
+    testCompileOnly 'com.android.tools.build:gradle:3.3.0'
 
     // Google Play Services Gradle Plugin
     compileOnly 'com.google.gms:google-services:4.0.+'
