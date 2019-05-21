@@ -25,7 +25,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.10.2')
+            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.10.8')
         }
     }
 
@@ -434,7 +434,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.android.support:support-v4:+ -> 27.1.1')
+            assert it.value.contains('com.android.support:support-v4:+ -> 28.0.0')
         }
     }
 
@@ -983,9 +983,12 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
     }
 
+    // This test is designed to fail with new Google releases
+    //   - This is a flag to know we need to make a change in this plugin to resolve version conflicts
     // Run manually search for "Warning:".
-    //    If a support library class is listed
-    //      then the support library needs to be updated for the firebase / GMS version
+    // NOTE: There is a mix between AndroidX and the Android Support Library.
+    //       One to this test may cause duplicated or missing classes with either of these
+    //       Might need to follow the AndroidX migration guide to fix and re-add support library
     def 'Find min-support for Firebase and GMS - build'() {
         GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['transformClassesAndResourcesWithProguardForDebug']]
         when:
@@ -993,11 +996,8 @@ class MainTest extends Specification {
         def gms_version = '+'
         def results = runGradleProject([
             compileLines: """
-                compile 'com.google.android.gms:play-services-base:$gms_version'
-                compile 'com.google.android.gms:play-services-gcm:$gms_version'
                 compile 'com.google.android.gms:play-services-maps:$gms_version'
                 compile 'com.google.firebase:firebase-messaging:+'
-                compile 'com.android.support:appcompat-v7:22.0.0'
             """,
             skipGradleVersion: GRADLE_LATEST_VERSION
         ])
