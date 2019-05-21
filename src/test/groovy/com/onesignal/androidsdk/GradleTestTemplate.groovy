@@ -13,9 +13,9 @@ class GradleTestTemplate {
     static def buildArgumentSets = [:]
 
     static def defaultBuildParams = [
-        compileSdkVersion: 27,
-        targetSdkVersion: 27,
-        minSdkVersion: 15
+        compileSdkVersion: 28,
+        targetSdkVersion: 28,
+        minSdkVersion: 16
     ]
 
     // Set to '--info' or '--stacktrace' to debug issues
@@ -27,7 +27,7 @@ class GradleTestTemplate {
     static void setup() {
         gradleVersions = [
             (GRADLE_OLDEST_VERSION): 'com.android.tools.build:gradle:2.2.3',
-            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.3.0-beta01'
+            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.3.0'
         ]
 
         buildArgumentSets = [
