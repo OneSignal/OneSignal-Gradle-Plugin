@@ -151,6 +151,9 @@ class GradleProjectPlugin implements Plugin<Project> {
     // Example: firebase-iid:16.2.0 and firebase-messaging:17.0.0 causes a runtime crash of
     //    class not found. While scanning dependencies when we find firebase-iid:16.2.0
     //    we will update firebase-messaging to 17.1.0 to fix this issue.
+    // NOTE: This list is manually maintained but should be generated in the future
+    //       One way to do this would be to run a build with proguard and check for any class missing warnings
+    //       A report can crawl up in versions that are available until a failure, then bump the dependent version
     static final Map<String, Map<String, Map<String, String>>> MODULE_DEPENDENCY_MINIMUMS = [
         'com.google.firebase:firebase-core': [
             '16.0.0': [
@@ -166,6 +169,18 @@ class GradleProjectPlugin implements Plugin<Project> {
             ],
             '17.0.1': [
                 'com.google.firebase:firebase-messaging': '17.3.1'
+            ],
+            '17.1.0': [
+                'com.google.firebase:firebase-messaging': '17.4.0'
+            ],
+            '17.1.1': [
+                'com.google.firebase:firebase-messaging': '17.5.0'
+            ],
+            '17.1.2': [
+                'com.google.firebase:firebase-messaging': '17.6.0'
+            ],
+            '18.0.0': [
+                'com.google.firebase:firebase-messaging': '18.0.0'
             ]
         ],
         'com.google.android.gms:play-services-measurement-base': [

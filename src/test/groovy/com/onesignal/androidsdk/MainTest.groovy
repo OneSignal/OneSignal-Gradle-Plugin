@@ -832,6 +832,44 @@ class MainTest extends Specification {
         }
     }
 
+    def 'when firebase-iid:18.0.0 ensure firebase-messaging:18.0.0'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-messaging:17.6.0'
+            compile 'com.google.firebase:firebase-iid:18.0.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.firebase:firebase-messaging:17.6.0 -> 18.0.0')
+        }
+    }
+
+    def 'when firebase-core:16.0.9 ensure firebase-messaging:17.6.0'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-messaging:17.0.0'
+            compile 'com.google.firebase:firebase-core:16.0.9'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.firebase:firebase-messaging:17.0.0 -> 17.6.0')
+        }
+    }
+
     // Note: Slow 20 second test, this is doing a full build
     //   This is needed as we are making sure compile and runtime versions are not being miss aligned
     //   Asserts just a double check as Gradle or AGP fails to build when this happens
