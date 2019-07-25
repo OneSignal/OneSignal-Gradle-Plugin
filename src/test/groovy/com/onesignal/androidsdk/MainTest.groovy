@@ -25,7 +25,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.10.8')
+            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.11.1')
         }
     }
 
@@ -622,11 +622,10 @@ class MainTest extends Specification {
         }
     }
 
-
-    def 'Compatible with google-services Gradle Plugin'() {
+    def 'Compatible with google-services Gradle Plugin 4.0.1'() {
         def compileLines = """\
-            compile 'com.google.android.gms:play-services-base:15.0.0'
-            compile 'com.google.firebase:firebase-auth:15.1.0'
+            compile 'com.google.firebase:firebase-messaging:17.6.0'
+            compile 'com.google.firebase:firebase-iid:18.0.0'
         """
 
         when:
@@ -641,6 +640,44 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
     }
 
+
+    def 'Compatible with google-services Gradle Plugin 4.1.0'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-messaging:17.6.0'
+            compile 'com.google.firebase:firebase-iid:18.0.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            buildscriptDependencies: "classpath 'com.google.gms:google-services:4.1.0'",
+            applyPlugins: "apply plugin: 'com.google.gms.google-services'",
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+    }
+
+    // Skipping test for google-services:4.2.0. Seems incompatible with our mock project setup
+
+    def 'Compatible with google-services Gradle Plugin 4.3.0'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-messaging:17.6.0'
+            compile 'com.google.firebase:firebase-iid:18.0.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            buildscriptDependencies: "classpath 'com.google.gms:google-services:4.3.0'",
+            applyPlugins: "apply plugin: 'com.google.gms.google-services'",
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+    }
 
     def 'firebase 15 - keep mixed minor versions'() {
         def compileLines = """\
@@ -1028,16 +1065,17 @@ class MainTest extends Specification {
     //       One to this test may cause duplicated or missing classes with either of these
     //       Might need to follow the AndroidX migration guide to fix and re-add support library
     def 'Find min-support for Firebase and GMS - build'() {
-        GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['transformClassesAndResourcesWithProguardForDebug']]
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']]
         when:
         // Keep as '+' for latest when checking in to this fails when Google changes requirements
-        def gms_version = '+'
         def results = runGradleProject([
             compileLines: """
-                compile 'com.google.android.gms:play-services-maps:$gms_version'
-                compile 'com.google.firebase:firebase-messaging:+'
+                compile 'com.google.android.gms:play-services-ads:18.1.0'
+                compile 'com.google.android.gms:play-services-base:16.0.0'
+                compile 'com.google.android.gms:play-services-location:16.0.0'
+                compile 'com.google.firebase:firebase-messaging:17.0.0'
             """,
-            skipGradleVersion: GRADLE_LATEST_VERSION
+            skipGradleVersion: GRADLE_OLDEST_VERSION
         ])
 
         then:
