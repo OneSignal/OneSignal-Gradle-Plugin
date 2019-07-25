@@ -25,16 +25,16 @@ dependencies {
 
     // These are compileOnly just so we can inspect these classes in IntelliJ
     // Android Gradle Plugin (AGP)
-    compileOnly 'com.android.tools.build:gradle:3.4.1'
-    testCompileOnly 'com.android.tools.build:gradle:3.4.1'
+    compileOnly 'com.android.tools.build:gradle:3.4.2'
+    testCompileOnly 'com.android.tools.build:gradle:3.4.2'
 
     // Google Play Services Gradle Plugin
-    compileOnly 'com.google.gms:google-services:4.2.+'
-    testCompileOnly 'com.google.gms:google-services:4.2.+'
+    compileOnly 'com.google.gms:google-services:4.3.+'
+    testCompileOnly 'com.google.gms:google-services:4.3.+'
 
     // Google's strict version matcher plugin
-    compileOnly 'com.google.android.gms:strict-version-matcher-plugin:1.1.+'
-    testCompileOnly 'com.google.android.gms:strict-version-matcher-plugin:1.1.+'
+    compileOnly 'com.google.android.gms:strict-version-matcher-plugin:1.2.+'
+    testCompileOnly 'com.google.android.gms:strict-version-matcher-plugin:1.2.+'
 
     testCompile gradleTestKit()
     testCompile 'junit:junit:4.12'
