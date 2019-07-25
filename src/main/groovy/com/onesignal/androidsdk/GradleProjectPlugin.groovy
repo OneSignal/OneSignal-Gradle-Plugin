@@ -261,7 +261,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         project.afterEvaluate {
             def googleServices = project.extensions.findByName('googleServices')
             if (googleServices)
-                googleServices.config.disableVersionCheck = true
+                googleServices.disableVersionCheck = true
         }
     }
 
