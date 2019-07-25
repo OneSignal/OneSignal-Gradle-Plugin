@@ -21,13 +21,13 @@ class GradleTestTemplate {
     // Set to '--info' or '--stacktrace' to debug issues
     static def GRADLE_LOG_LEVEL = null
 
-    static def GRADLE_LATEST_VERSION = '5.4.1'
+    static def GRADLE_LATEST_VERSION = '5.5.1'
     static def GRADLE_OLDEST_VERSION = '2.14.1'
 
     static void setup() {
         gradleVersions = [
             (GRADLE_OLDEST_VERSION): 'com.android.tools.build:gradle:2.2.3',
-            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.4.1'
+            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.4.2'
         ]
 
         buildArgumentSets = [
@@ -52,6 +52,29 @@ class GradleTestTemplate {
             <manifest xmlns:android="http://schemas.android.com/apk/res/android"
                             package="${packageName}">
             </manifest>
+        """.stripIndent()
+    }
+
+    static void createGoogleServicesJson(String path, String packageName = 'com.app.example') {
+        def googleServicesFile = testProjectDir.newFile("${path}/google-services.json")
+        googleServicesFile << """\
+            {
+              "project_info": {
+                "project_number": "12345678",
+                "project_id": "test-123"
+              },
+              "client": [
+                {
+                  "client_info": {
+                    "mobilesdk_app_id": "1:12345678:android:12345678",
+                    "android_client_info": { "package_name": "${packageName}" }
+                  },
+                  "api_key": [{
+                     "current_key": "12345678"
+                  }]
+                }
+              ]
+            }
         """.stripIndent()
     }
 
@@ -88,6 +111,7 @@ class GradleTestTemplate {
         testProjectDir.create()
         testProjectDir.newFolder('src', 'main')
         createManifest('src/main')
+        createGoogleServicesJson('')
 
         buildFileStr = """\
             buildscript {
@@ -122,7 +146,7 @@ class GradleTestTemplate {
 
             android {
                 compileSdkVersion ${buildSections['compileSdkVersion']}
-                buildToolsVersion '27.0.3'
+                buildToolsVersion '28.0.3'
                  defaultConfig {
                     applicationId 'com.app.example'
 
@@ -184,7 +208,7 @@ class GradleTestTemplate {
 
             android {
                 compileSdkVersion ${buildSections['compileSdkVersion']}
-                buildToolsVersion '27.0.3'
+                buildToolsVersion '28.0.3'
                  defaultConfig {
                     minSdkVersion ${buildSections['minSdkVersion']}
                 }
