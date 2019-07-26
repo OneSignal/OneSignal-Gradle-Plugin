@@ -107,6 +107,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     static boolean hasFullPlayServices
 
     static final def GOOGLE_SEMANTIC_EXACT_VERSION = new ExactVersionSelector('15.0.0')
+    static final def LAST_MAJOR_ANDROID_SUPPORT_VERSION = 28
 
     // Skip these groups when they are the parent when generating versionGroupAligns
     //   - This for example prevents GMS's dependency on Android Support from locking Android Support
@@ -473,14 +474,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (!maxSupportVersionObj)
             return
 
-        def compileSdkVersion = (project.android.compileSdkVersion as String).split('-')[1].toInteger()
-        String maxSupportVersion = maxSupportVersionObj[compileSdkVersion]
-        if (!maxSupportVersion) {
-            maxSupportVersion = "$compileSdkVersion.+"
-            project.logger.warn("OneSignalPlugin: $compileSdkVersion not found in maxSupportVersion rules list.\n" +
-                "Assuming max safe default of '$maxSupportVersion' for 'com.android.support'")
-        }
-
+        def maxSupportVersion = maxAndroidSupportVersion(maxSupportVersionObj)
         def currentOverride = versionOverride['version'] as String
 
         // gradleV2PostAGPApplyFallback means we can't get a dependency tree
@@ -500,6 +494,19 @@ class GradleProjectPlugin implements Plugin<Project> {
             )
         }
         versionOverride['version'] = newMaxVersion
+    }
+
+    static String maxAndroidSupportVersion(Map<Integer, String> maxSupportVersionObj) {
+        def compileSdkVersion = (project.android.compileSdkVersion as String).split('-')[1].toInteger()
+        if (compileSdkVersion <= LAST_MAJOR_ANDROID_SUPPORT_VERSION) {
+            String maxSupportVersion = maxSupportVersionObj[compileSdkVersion]
+            if (maxSupportVersion)
+                maxSupportVersion
+            else
+                LAST_MAJOR_ANDROID_SUPPORT_VERSION
+        }
+        else
+            LAST_MAJOR_ANDROID_SUPPORT_VERSION
     }
 
     static void overrideVersion(DependencyResolveDetails details, String groupVersionOverride) {
