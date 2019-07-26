@@ -275,6 +275,25 @@ class MainTest extends Specification {
         }
     }
 
+    def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 29"() {
+        when:
+        def results = runGradleProject([
+            compileSdkVersion: 29,
+            compileLines : """\
+                compile 'com.onesignal:OneSignal:3.5.+'
+                compile 'com.android.support:support-fragment:28.0.0'
+            """,
+            skipGradleVersion: GRADLE_OLDEST_VERSION
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('--- com.onesignal:OneSignal:3.5.+ -> 3.7.0')
+            assert it.value.contains(' +--- com.google.android.gms:play-services-gcm:[10.2.1, 11.6.99] -> 11.6.2')
+        }
+    }
+
     def "Upgrade to compatible OneSignal SDK when using Android Support library rev 27"() {
         when:
         def results = runGradleProject([
