@@ -92,6 +92,7 @@ class GradleProjectPlugin implements Plugin<Project> {
                 26: '27.+',
                 27: '27.+',
                 28: '28.+'
+                // There is no 29, AndroidX has taken it's place
             ]
         ],
 
@@ -105,6 +106,11 @@ class GradleProjectPlugin implements Plugin<Project> {
     // Is com.google.android.gms:play-services included in the project?
     // If so we will limit gms and firebase to 12.0.1 as this it's last version
     static boolean hasFullPlayServices
+
+    // Is there any AndroidX libraries in the project
+    // True if there is dependency in the project, sub dependencies, or has android.enableJetifier=true
+    // Also if android.useAndroidX=true, androidx.multidex:multidex is automatically added to the project
+    static boolean hasAnAndroidXLibrary
 
     static final def GOOGLE_SEMANTIC_EXACT_VERSION = new ExactVersionSelector('15.0.0')
     static final def LAST_MAJOR_ANDROID_SUPPORT_VERSION = 28
@@ -219,14 +225,22 @@ class GradleProjectPlugin implements Plugin<Project> {
     static boolean didUpdateOneSignalVersion
 
     enum WarningType {
-        SUPPORT_DOWNGRADE
+        SUPPORT_DOWNGRADE,
+        JETIFIER_REQUIRED
     }
     static Map<WarningType, Boolean> shownWarnings
+
+    static final def PROJECT_ANDROID_USE_ANDROIDX = 'android.useAndroidX'
+    static final def PROJECT_ANDROID_ENABLE_JETIFIER = 'android.enableJetifier'
 
     static Object getExtOverride(String prop) {
         if (!gradleV2PostAGPApplyFallback)
             return null
         project.ext.has(prop) ? project.ext.get(prop) : null
+    }
+
+    static Object getGradleProp(String prop) {
+        project.extensions.extraProperties.properties.get(prop)
     }
 
     @Override
@@ -235,12 +249,19 @@ class GradleProjectPlugin implements Plugin<Project> {
         project.logger.info('Initializing OneSignal-Gradle-Plugin 0.12.2')
 
         hasFullPlayServices = false
+        hasAnAndroidXLibrary = false
+
         gradleV2PostAGPApplyFallback = false
         didUpdateOneSignalVersion = false
         versionGroupAligns = InternalUtils.deepcopy(VERSION_GROUP_ALIGNS)
         copiedModules = [:]
         shownWarnings = [:]
         versionModuleAligns = [:]
+
+        // TODO: Enable these if needed
+        // NOTE: These work here, however need to test if we can enable them later in the resolve process
+//      project.ext["android.useAndroidX"] = true
+//      project.ext["android.enableJetifier"] = true
 
         generateMinModulesToTrackStatic()
 
@@ -334,7 +355,7 @@ class GradleProjectPlugin implements Plugin<Project> {
                     return
 
                 // TODO: Remove this after testing
-                // project.ext['android.injected.build.model.only'] = true
+                 project.ext['android.injected.build.model.only'] = true
 
                 doResolutionStrategyAndroidPluginV3(variant.runtimeConfiguration)
                 doResolutionStrategyAndroidPluginV3(variant.compileConfiguration)
@@ -465,7 +486,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (!inGroupAlignList(details))
             return
 
-        String toVersion = finalAlignmentRules()[details.requested.group]['version']
+        String toVersion = finalAlignmentRules()[details.target.group]['version']
         overrideVersion(details, toVersion)
     }
 
@@ -510,9 +531,9 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void overrideVersion(DependencyResolveDetails details, String groupVersionOverride) {
-        def group = details.requested.group
-        def name = details.requested.name
-        def version = details.requested.version
+        def group = details.target.group
+        def name = details.target.name
+        def version = details.target.version
 
         String resolvedVersion = null
         def moduleOverride = versionModuleAligns["$group:$name"]
@@ -573,14 +594,15 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void logModuleOverride(DependencyResolveDetails details, String resolvedVersion) {
-        def modName = "${details.requested.group}:${details.requested.name}"
-        def versionsMsg = "'${details.requested.version}' to '${resolvedVersion}'"
+        def modName = "${details.target.group}:${details.target.name}"
+        def versionsMsg = "'${details.target.version}' to '${resolvedVersion}'"
         def msg = "${modName} overridden from ${versionsMsg}"
         project.logger.info("OneSignalProjectPlugin: ${msg}")
     }
 
-
     static boolean inGroupAlignListFindByStrings(String group, String name) {
+        checkIfGroupHasAnAndroidXLibrary(group)
+
         // Only override groups we define
         def versionOverride = versionGroupAligns[group]
         if (!versionOverride)
@@ -594,8 +616,34 @@ class GradleProjectPlugin implements Plugin<Project> {
         true
     }
 
+    static void checkIfGroupHasAnAndroidXLibrary(String group) {
+        if (group.split('\\.')[0] != 'androidx')
+            return
+
+        hasAnAndroidXLibrary = true
+        // TODO:1: Check if we have ANY Android Support Library references and add a warning to the log
+        // TODO:2: On the flip side on a Android Support Library detection see if hasAnAndroidXLibrary is true and add a warning.
+        // TODO:3: See if we can force enable AndroidX
+        // TODO:4:   - If doing this check if the AGP version is high enough, as well as the compileSDKVersion 28
+    }
+
+    static boolean isJetifierRequiredButMissing() {
+        hasAnAndroidXLibrary && versionGroupAligns[GROUP_ANDROID_SUPPORT]
+    }
+
+    static void maybeLogJetifierWarning() {
+        if (!isJetifierRequiredButMissing())
+            return
+
+        warnOnce(
+            WarningType.JETIFIER_REQUIRED,
+            "OneSignalPlugin: Mixture of Android Support Libraries and AndroidX detected without Jetifier! \n " +
+                "   Please enabled by adding android.enableJetifier=true to your gradle.properties file!"
+        )
+    }
+
     static boolean inGroupAlignList(DependencyResolveDetails details) {
-        inGroupAlignListFindByStrings(details.requested.group, details.requested.name)
+        inGroupAlignListFindByStrings(details.target.group, details.target.name)
     }
 
     // Compares two exact versions
@@ -699,7 +747,7 @@ class GradleProjectPlugin implements Plugin<Project> {
                 return
 
             // Needed for "Upgrade to compatible OneSignal SDK when using Android Support library rev 27" test
-            String curOverrideVersion = versionGroupAligns[details.requested.group]['version']
+            String curOverrideVersion = versionGroupAligns[details.target.group]['version']
             overrideVersion(details, curOverrideVersion)
         }
 
