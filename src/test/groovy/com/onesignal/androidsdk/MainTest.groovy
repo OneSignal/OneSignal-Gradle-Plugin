@@ -294,6 +294,25 @@ class MainTest extends Specification {
         }
     }
 
+    def 'Works with Jetifier and picks correct version AndroidX version'() {
+        when:
+        def results = runGradleProject([
+            'android.useAndroidX': true,
+            'android.enableJetifier': true,
+            compileLines: """
+                implementation 'com.google.android.gms:play-services-ads:18.1.0'
+                implementation 'com.android.support:cardview-v7:[26.0.0, 27.2.0)'
+            """,
+            skipGradleVersion: GRADLE_OLDEST_VERSION
+        ])
+
+        then:
+        assert results // Assert success and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.android.support:cardview-v7:[26.0.0, 27.2.0) -> androidx.cardview:cardview:1.0.0')
+        }
+    }
+
     def "Upgrade to compatible OneSignal SDK when using Android Support library rev 27"() {
         when:
         def results = runGradleProject([

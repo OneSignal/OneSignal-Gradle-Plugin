@@ -106,12 +106,21 @@ class GradleTestTemplate {
         '''.stripIndent()
     }
 
+    static def createGradlePropertiesFile(buildSections) {
+        def gradlePropertiesFile = testProjectDir.newFile("gradle.properties")
+        gradlePropertiesFile << """\
+            android.useAndroidX=${buildSections['android.useAndroidX'] ?: false}
+            android.enableJetifier=${buildSections['android.enableJetifier'] ?: false}
+        """.stripIndent()
+    }
+
     static void createBuildFile(buildSections) {
         testProjectDir = new TemporaryFolder()
         testProjectDir.create()
         testProjectDir.newFolder('src', 'main')
         createManifest('src/main')
         createGoogleServicesJson('')
+        createGradlePropertiesFile(buildSections)
 
         buildFileStr = """\
             buildscript {
