@@ -92,6 +92,7 @@ class GradleProjectPlugin implements Plugin<Project> {
                 26: '27.+',
                 27: '27.+',
                 28: '28.+'
+                // There is no 29, AndroidX has taken it's place
             ]
         ],
 
@@ -465,7 +466,7 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (!inGroupAlignList(details))
             return
 
-        String toVersion = finalAlignmentRules()[details.requested.group]['version']
+        String toVersion = finalAlignmentRules()[details.target.group]['version']
         overrideVersion(details, toVersion)
     }
 
@@ -510,9 +511,9 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void overrideVersion(DependencyResolveDetails details, String groupVersionOverride) {
-        def group = details.requested.group
-        def name = details.requested.name
-        def version = details.requested.version
+        def group = details.target.group
+        def name = details.target.name
+        def version = details.target.version
 
         String resolvedVersion = null
         def moduleOverride = versionModuleAligns["$group:$name"]
@@ -573,8 +574,8 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void logModuleOverride(DependencyResolveDetails details, String resolvedVersion) {
-        def modName = "${details.requested.group}:${details.requested.name}"
-        def versionsMsg = "'${details.requested.version}' to '${resolvedVersion}'"
+        def modName = "${details.target.group}:${details.target.name}"
+        def versionsMsg = "'${details.target.version}' to '${resolvedVersion}'"
         def msg = "${modName} overridden from ${versionsMsg}"
         project.logger.info("OneSignalProjectPlugin: ${msg}")
     }
@@ -595,7 +596,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static boolean inGroupAlignList(DependencyResolveDetails details) {
-        inGroupAlignListFindByStrings(details.requested.group, details.requested.name)
+        inGroupAlignListFindByStrings(details.target.group, details.target.name)
     }
 
     // Compares two exact versions
@@ -699,7 +700,7 @@ class GradleProjectPlugin implements Plugin<Project> {
                 return
 
             // Needed for "Upgrade to compatible OneSignal SDK when using Android Support library rev 27" test
-            String curOverrideVersion = versionGroupAligns[details.requested.group]['version']
+            String curOverrideVersion = versionGroupAligns[details.target.group]['version']
             overrideVersion(details, curOverrideVersion)
         }
 
