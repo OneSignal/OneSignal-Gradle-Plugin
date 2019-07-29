@@ -19,7 +19,7 @@ class GradleTestTemplate {
     ]
 
     // Set to '--info' or '--stacktrace' to debug issues
-    static def GRADLE_LOG_LEVEL = null
+    static def GRADLE_LOG_LEVEL = '--info'
 
     static def GRADLE_LATEST_VERSION = '5.5.1'
     static def GRADLE_OLDEST_VERSION = '2.14.1'
@@ -138,6 +138,10 @@ class GradleTestTemplate {
             plugins {
                 ${buildSections['onesignalPluginId']}
             }
+
+
+//            project.ext["android.useAndroidX"] = true
+//            project.ext["android.enableJetifier"] = true
             
             project.ext {
                  ${buildSections['projectExts']}
@@ -156,6 +160,7 @@ class GradleTestTemplate {
             android {
                 compileSdkVersion ${buildSections['compileSdkVersion']}
                 buildToolsVersion '28.0.3'
+
                  defaultConfig {
                     applicationId 'com.app.example'
 
@@ -196,7 +201,7 @@ class GradleTestTemplate {
         """\
     }
 
-    // Create subproject only if subProjectCompileLines is set
+// Create subproject only if subProjectCompileLines is set
     static void createSubProject(buildSections) {
         if (buildSections['subProjectCompileLines'] == null)
             return
