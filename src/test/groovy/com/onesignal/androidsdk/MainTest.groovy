@@ -1061,22 +1061,22 @@ class MainTest extends Specification {
     // This test is designed to fail with new Google releases
     //   - This is a flag to know we need to make a change in this plugin to resolve version conflicts
     // Run manually search for "Warning:".
-    // NOTE: There is a mix between AndroidX and the Android Support Library.
-    //       One to this test may cause duplicated or missing classes with either of these
-    //       Might need to follow the AndroidX migration guide to fix and re-add support library
     def 'Find min-support for Firebase and GMS - build'() {
         GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']]
         when:
         // Keep as '+' for latest when checking in to this fails when Google changes requirements
         def results = runGradleProject([
             compileLines: """
-                compile 'com.google.android.gms:play-services-ads:18.1.0'
-                compile 'com.google.android.gms:play-services-base:16.0.0'
-                compile 'com.google.android.gms:play-services-location:16.0.0'
-                compile 'com.google.firebase:firebase-messaging:17.0.0'
+                compile 'com.google.android.gms:play-services-ads:+'
+                compile 'com.google.android.gms:play-services-base:+'
+                compile 'com.google.android.gms:play-services-location:+'
+//              compile 'com.onesignal:OneSignal:[3.11.1, 3.99.99]' // TODO: Need to fix, see note below
             """,
             skipGradleVersion: GRADLE_OLDEST_VERSION
         ])
+        // NOTE: There is a mix between AndroidX and the Android Support Library.
+        //       One to this test may cause duplicated or missing classes with either of these
+        //       Might need to follow the AndroidX migration guide to fix and re-add support library
 
         then:
         assert results // Assert success
