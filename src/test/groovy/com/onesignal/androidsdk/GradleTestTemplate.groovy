@@ -81,6 +81,8 @@ class GradleTestTemplate {
     // Don't warn on any android specific classes.
     // Used to detect build errors with out of date support library
     // Needed for the 'Find min-support for Firebase and GMS - build' Test
+    // WARNING: This configuration has issues with R8, even if it is disabled some tasks fail on newer AGP versions
+    //   Execution failed for task ':transformClassesWithMultidexlistForDebug'.
     static void createProguardFile() {
         def proguardFile = testProjectDir.newFile("proguard-rules.pro")
         proguardFile << '''
@@ -111,6 +113,9 @@ class GradleTestTemplate {
         gradlePropertiesFile << """\
             android.useAndroidX=${buildSections['android.useAndroidX'] ?: false}
             android.enableJetifier=${buildSections['android.enableJetifier'] ?: false}
+            # Disable since it does not warn about some missing classes, such as firebase
+            android.enableR8=false
+            android.enableD8=false
         """.stripIndent()
     }
 
@@ -176,7 +181,8 @@ class GradleTestTemplate {
                 buildTypes {
                     debug {
                         minifyEnabled true
-                        proguardFiles 'proguard-rules.pro'
+                        // See createProguardFile note on why this is disabled.
+                        // proguardFiles 'proguard-rules.pro'
                     }
                 }
 
