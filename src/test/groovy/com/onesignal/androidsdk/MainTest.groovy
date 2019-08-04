@@ -1139,13 +1139,14 @@ class MainTest extends Specification {
         assert results // Assert success
     }
 
-
     // Run manually search for "Warning:".
     //    If a support library class is listed
     //      then the support library needs to be updated for the firebase / GMS version
     def 'test core and messaging - build'() {
-//        GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['transformClassesAndResourcesWithProguardForDebug', '--info']]
-//        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['dependencies', '--configuration', 'debugCompileClasspath', '--info']]
+        // Other run options that can be manually run to help debug the issue
+        // GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['checkReleaseDuplicateClasses', '--info']]
+        // GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['transformClassesAndResourcesWithProguardForDebug', '--info']]
+        // GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['dependencies', '--configuration', 'debugCompileClasspath', '--info']]
         GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']] // , '--info']]
         when:
         def results = runGradleProject([
