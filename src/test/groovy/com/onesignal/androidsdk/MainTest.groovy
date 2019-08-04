@@ -888,6 +888,25 @@ class MainTest extends Specification {
         }
     }
 
+    def 'when play-services-basement:17.0.0 upgrade play-services-base:17.0.0'() {
+        def compileLines = """\
+             implementation 'com.google.android.gms:play-services-base:15.0.1'
+             implementation 'com.google.android.gms:play-services-basement:17.0.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.android.gms:play-services-base:15.0.1 -> 17.0.0')
+        }
+    }
+
     def 'when play-services-basement:16.0.1 upgrade to firebase-messaging:17.3.3'() {
         def compileLines = """\
             compile 'com.google.firebase:firebase-messaging:17.0.0'
