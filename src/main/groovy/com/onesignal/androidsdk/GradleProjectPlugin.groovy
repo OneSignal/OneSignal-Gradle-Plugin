@@ -239,7 +239,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     @Override
     void apply(Project inProject) {
         project = inProject
-        project.logger.info('Initializing OneSignal-Gradle-Plugin 0.12.3')
+        project.logger.info('Initializing OneSignal-Gradle-Plugin 0.12.4')
 
         hasFullPlayServices = false
         gradleV2PostAGPApplyFallback = false
