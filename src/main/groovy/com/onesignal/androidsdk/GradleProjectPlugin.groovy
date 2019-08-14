@@ -69,7 +69,10 @@ class GradleProjectPlugin implements Plugin<Project> {
 
         // ### Google Firebase library
         (GROUP_FIREBASE): [
-            version: NO_REF_VERSION
+            version: NO_REF_VERSION,
+            // Do not attempt to align Firebase's Unity libraries
+            // These wrapper libraries have their own version numbers that don't line up
+            omitModulesPostFix: '-unity',
         ],
 
         // ### Android Support Library
@@ -596,6 +599,10 @@ class GradleProjectPlugin implements Plugin<Project> {
         // Skip modules that should not align to other modules in the group
         def omitModules = versionOverride['omitModules']
         if (omitModules && omitModules.contains(name))
+            return false
+
+        def omitModulesPostFix = versionOverride['omitModulesPostFix']
+        if (omitModulesPostFix && name.endsWith(omitModulesPostFix))
             return false
 
         true

@@ -108,7 +108,7 @@ class GradleTestTemplate {
         '''.stripIndent()
     }
 
-    static def createGradlePropertiesFile(buildSections) {
+    static void createGradlePropertiesFile(buildSections) {
         def gradlePropertiesFile = testProjectDir.newFile("gradle.properties")
         gradlePropertiesFile << """\
             android.useAndroidX=${buildSections['android.useAndroidX'] ?: false}
@@ -117,6 +117,26 @@ class GradleTestTemplate {
             android.enableR8=false
             android.enableD8=false
         """.stripIndent()
+    }
+
+    // Creates a local maven repo to test local libraries; such as firebase-app-unity
+    static void createM2repository(String group, String module, String version) {
+        final libPath = "m2repository/${group.replace('.', '/')}/${module}/${version}"
+        testProjectDir.newFolder(libPath.split('/'))
+
+        final pomFile = testProjectDir.newFile("${libPath}/${module}-${version}.pom")
+        pomFile << """\
+           <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns="http://maven.apache.org/POM/4.0.0"
+             xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+              <modelVersion>4.0.0</modelVersion>
+              <groupId>${group}</groupId>
+              <artifactId>${module}</artifactId>
+              <version>${version}</version>
+              <packaging>pom</packaging>
+              <dependencies></dependencies>
+            </project>
+        """
     }
 
     static void createBuildFile(buildSections) {
@@ -151,6 +171,8 @@ class GradleTestTemplate {
             allprojects {
                 repositories {
                     maven { url 'https://maven.google.com' }
+                    // Local maven repo to test local libaries; such as firebase-app-unity
+                    maven { url(uri('m2repository')) }
                     jcenter()
                 }
             }
@@ -264,13 +286,14 @@ class GradleTestTemplate {
                 createSubProject(currentParams)
                 createProguardFile()
 
-                // Test running gradle plugin last on newest version of Gradle only
-//                if (gradleVersion.key == GRADLE_OLDEST_VERSION)
-//                    return
-//                currentParams['onesignalPluginId'] = "id 'com.onesignal.androidsdk.onesignal-gradle-plugin' apply false"
-//                currentParams['applyPlugins'] = "apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'"
+                // Uncomment to test with only the latest version of Gradle
+//              if (!runLatestGradleOnly(gradleVersion, currentParams))
+//                  return
 
                 buildArguments.removeAll([null])
+
+                if (buildParams['preBuildClosure'])
+                    buildParams['preBuildClosure']()
 
                 def result =
                     GradleRunner.create()
@@ -292,5 +315,13 @@ class GradleTestTemplate {
     static void applyOneSignalGradlePlugin(buildSections) {
         if (buildSections['onesignalPluginId'] == null)
             buildSections['onesignalPluginId'] = "id 'com.onesignal.androidsdk.onesignal-gradle-plugin'"
+    }
+
+    static boolean runLatestGradleOnly(gradleVersion, currentParams) {
+        if (gradleVersion.key == GRADLE_OLDEST_VERSION)
+            return false
+        currentParams['onesignalPluginId'] = "id 'com.onesignal.androidsdk.onesignal-gradle-plugin' apply false"
+        currentParams['applyPlugins'] = "apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'"
+        true
     }
 }
