@@ -25,7 +25,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.11.1')
+            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.11.2')
         }
     }
 
@@ -961,6 +961,27 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
         results.each {
             assert it.value.contains('com.google.firebase:firebase-messaging:17.0.0 -> 17.6.0')
+        }
+    }
+
+    def 'when firebase-app-unity and firebase-messaging'() {
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : """\
+                implementation 'com.google.firebase:firebase-messaging:17.0.0'
+                implementation 'com.google.firebase:firebase-app-unity:6.2.2'
+            """,
+            preBuildClosure: {
+                GradleTestTemplate.createM2repository('com.google.firebase', 'firebase-app-unity', '6.2.2')
+            }
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            // Ensure we are not trying to update this unity library
+            assert it.value.contains('com.google.firebase:firebase-app-unity:6.2.2\n')
         }
     }
 
