@@ -7,6 +7,8 @@ class MainTest extends Specification {
     static def GRADLE_LATEST_VERSION = GradleTestTemplate.GRADLE_LATEST_VERSION
     static def GRADLE_OLDEST_VERSION = GradleTestTemplate.GRADLE_OLDEST_VERSION
 
+    static def NEW_LINE = System.getProperty('line.separator')
+
     // Before each test
     def setup() {
         GradleTestTemplate.setup()
@@ -25,7 +27,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.11.4')
+            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.12.3')
         }
     }
 
@@ -437,7 +439,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.google.android.gms:play-services:12.0.1\n')
+            assert it.value.contains("com.google.android.gms:play-services:12.0.1$NEW_LINE")
             assert it.value.contains('com.google.android.gms:play-services-location:15.0.0 -> 12.0.1')
             assert it.value.contains('com.google.firebase:firebase-core:15.0.0 -> 12.0.1')
         }
@@ -656,7 +658,7 @@ class MainTest extends Specification {
             // firebase-auth depends on play-services-base:[15.0.1, 16.0.0) so this bump to 15.0.1 is expected
             assert it.value.contains('com.google.android.gms:play-services-base:15.0.0 -> 15.0.1')
             // This will be unchanged
-            assert it.value.contains('com.google.firebase:firebase-auth:15.1.0\n')
+            assert it.value.contains("com.google.firebase:firebase-auth:15.1.0$NEW_LINE")
         }
     }
 
@@ -733,8 +735,8 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
         results.each {
             // Ensure versions are unchanged
-            assert it.value.contains('com.google.firebase:firebase-ads:15.0.0\n')
-            assert it.value.contains('com.google.firebase:firebase-perf:15.2.0\n')
+            assert it.value.contains("com.google.firebase:firebase-ads:15.0.0$NEW_LINE")
+            assert it.value.contains("com.google.firebase:firebase-perf:15.2.0$NEW_LINE")
         }
     }
 
@@ -757,7 +759,7 @@ class MainTest extends Specification {
             assert it.value.contains('com.google.android.gms:play-services-gcm:12.0.1 -> 15.0.1')
 
             // This will be unchanged
-            assert it.value.contains('com.google.android.gms:play-services-analytics:15.0.2\n')
+            assert it.value.contains("com.google.android.gms:play-services-analytics:15.0.2$NEW_LINE")
         }
     }
 
@@ -782,8 +784,8 @@ class MainTest extends Specification {
             assert it.value.contains('com.google.firebase:firebase-messaging:[10.2.1, 12.1.0) -> 15.0.2')
 
             // These should remain unchanged
-            assert it.value.contains('com.google.android.gms:play-services-analytics:15.0.2\n')
-            assert it.value.contains('com.google.firebase:firebase-auth:15.1.0\n')
+            assert it.value.contains("com.google.android.gms:play-services-analytics:15.0.2$NEW_LINE")
+            assert it.value.contains("com.google.firebase:firebase-auth:15.1.0$NEW_LINE")
         }
     }
 
@@ -865,7 +867,7 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains('com.google.firebase:firebase-messaging:17.1.0\n')
+            assert it.value.contains("com.google.firebase:firebase-messaging:17.1.0$NEW_LINE")
         }
     }
 
@@ -981,7 +983,7 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
         results.each {
             // Ensure we are not trying to update this unity library
-            assert it.value.contains('com.google.firebase:firebase-app-unity:6.2.2\n')
+            assert it.value.contains("com.google.firebase:firebase-app-unity:6.2.2$NEW_LINE")
         }
     }
 
@@ -1036,8 +1038,8 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains('com.google.android.gms:play-services-base:11.2.0\n')
-            assert it.value.contains('com.android.support:appcompat-v7:23.0.1 -> 25.1.0\n')
+            assert it.value.contains("com.google.android.gms:play-services-base:11.2.0$NEW_LINE")
+            assert it.value.contains('com.android.support:appcompat-v7:23.0.1 -> 25.1.0')
         }
     }
 
@@ -1058,7 +1060,7 @@ class MainTest extends Specification {
         results.each {
             // Checking for any fail but this is the case it is catching
             //   com.google.firebase:firebase-measurement-connector:16.0.0 -> [10.2.1,12.1.0[ FAILED
-            assert !it.value.contains('FAILED\n')
+            assert !it.value.contains('FAILED')
         }
     }
 
@@ -1076,7 +1078,7 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains('com.android.support:support-v4:25.0.0 -> 22.2.1\n')
+            assert it.value.contains('com.android.support:support-v4:25.0.0 -> 22.2.1')
         }
     }
 
@@ -1094,7 +1096,7 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains('com.android.support:support-v4:26.0.0 -> 25.0.1\n')
+            assert it.value.contains('com.android.support:support-v4:26.0.0 -> 25.0.1')
         }
     }
 
@@ -1113,7 +1115,7 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
         results.each {
-            assert it.value.contains('com.android.support:support-v4:26.0.0 -> 25.0.1\n')
+            assert it.value.contains('com.android.support:support-v4:26.0.0 -> 25.0.1')
         }
     }
 
