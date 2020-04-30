@@ -300,7 +300,6 @@ class MainTest extends Specification {
         when:
         def results = runGradleProject([
             'android.useAndroidX': true,
-            'android.enableJetifier': true,
             compileLines : """\
                 implementation 'com.onesignal:OneSignal:3.0.0'
                 implementation 'com.google.firebase:firebase-iid:20.1.1'
@@ -318,13 +317,12 @@ class MainTest extends Specification {
     def "Upgrade to compatible OneSignal SDK when firebase-iid:20.1.6 is used"() {
         when:
         def results = runGradleProject([
-                'android.useAndroidX': true,
-                'android.enableJetifier': true,
-                compileLines : """\
+            'android.useAndroidX': true,
+            compileLines : """\
                 implementation 'com.onesignal:OneSignal:3.0.0'
                 implementation 'com.google.firebase:firebase-iid:20.1.6'
             """,
-                skipGradleVersion: GRADLE_OLDEST_VERSION
+            skipGradleVersion: GRADLE_OLDEST_VERSION
         ])
 
         then:
@@ -936,6 +934,7 @@ class MainTest extends Specification {
 
         when:
         def results = runGradleProject([
+            'android.useAndroidX': true,
             skipGradleVersion: GRADLE_OLDEST_VERSION,
             compileLines : compileLines
         ])
@@ -993,8 +992,9 @@ class MainTest extends Specification {
 
         when:
         def results = runGradleProject([
+            'android.useAndroidX': true,
             skipGradleVersion: GRADLE_OLDEST_VERSION,
-            compileLines : compileLines
+            compileLines: compileLines
         ])
 
         then:
@@ -1108,6 +1108,7 @@ class MainTest extends Specification {
 
         when:
         def results = runGradleProject([
+            'android.useAndroidX': true,
             compileLines : compileLines,
             skipGradleVersion: GRADLE_OLDEST_VERSION
         ])
@@ -1203,6 +1204,7 @@ class MainTest extends Specification {
         when:
         // Keep as '+' for latest when checking in to this fails when Google changes requirements
         def results = runGradleProject([
+            'android.useAndroidX': true,
             compileLines: """
                 compile 'com.google.android.gms:play-services-ads:+'
                 compile 'com.google.android.gms:play-services-base:+'
