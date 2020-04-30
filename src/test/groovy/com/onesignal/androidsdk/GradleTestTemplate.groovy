@@ -27,7 +27,7 @@ class GradleTestTemplate {
     static void setup() {
         gradleVersions = [
             (GRADLE_OLDEST_VERSION): 'com.android.tools.build:gradle:2.2.3',
-            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.5.3'
+            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:3.6.3'
         ]
 
         buildArgumentSets = [
