@@ -156,6 +156,9 @@ class GradleProjectPlugin implements Plugin<Project> {
     // Example: firebase-iid:16.2.0 and firebase-messaging:17.0.0 causes a runtime crash of
     //    class not found. While scanning dependencies when we find firebase-iid:16.2.0
     //    we will update firebase-messaging to 17.1.0 to fix this issue.
+    // Inherits: Any module min version is carried over to higher numbers if it is defined in a lower version number.
+    //           Example: If firebase-iid:20.1.6 is used in a project then OneSignal will still be upgraded to 3.13.0
+    //                    even though OneSignal:3.13.0 is only defined in the hash under firebase-iid:20.1.1.
     // NOTE: This list is manually maintained but should be generated in the future
     //       One way to do this would be to run a build with proguard and check for any class missing warnings
     //       A report can crawl up in versions that are available until a failure, then bump the dependent version
@@ -197,7 +200,8 @@ class GradleProjectPlugin implements Plugin<Project> {
                 'com.google.firebase:firebase-messaging': '20.1.1'
             ],
             '20.1.1': [
-                'com.google.firebase:firebase-messaging': '20.1.1'
+                'com.google.firebase:firebase-messaging': '20.1.1',
+                'com.onesignal:OneSignal': '3.13.0'
             ],
             '20.1.2': [
                 'com.google.firebase:firebase-messaging': '20.1.1'
