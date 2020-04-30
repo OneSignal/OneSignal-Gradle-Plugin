@@ -296,6 +296,44 @@ class MainTest extends Specification {
         }
     }
 
+    def "Upgrade to compatible OneSignal SDK when firebase-iid:20.1.1 is used"() {
+        when:
+        def results = runGradleProject([
+            'android.useAndroidX': true,
+            'android.enableJetifier': true,
+            compileLines : """\
+                implementation 'com.onesignal:OneSignal:3.0.0'
+                implementation 'com.google.firebase:firebase-iid:20.1.1'
+            """,
+            skipGradleVersion: GRADLE_OLDEST_VERSION
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('--- com.onesignal:OneSignal:3.0.0 -> 3.13.0')
+        }
+    }
+
+    def "Upgrade to compatible OneSignal SDK when firebase-iid:20.1.6 is used"() {
+        when:
+        def results = runGradleProject([
+                'android.useAndroidX': true,
+                'android.enableJetifier': true,
+                compileLines : """\
+                implementation 'com.onesignal:OneSignal:3.0.0'
+                implementation 'com.google.firebase:firebase-iid:20.1.6'
+            """,
+                skipGradleVersion: GRADLE_OLDEST_VERSION
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('--- com.onesignal:OneSignal:3.0.0 -> 3.13.0')
+        }
+    }
+
     def 'Works with Jetifier and picks correct version AndroidX version'() {
         when:
         def results = runGradleProject([
