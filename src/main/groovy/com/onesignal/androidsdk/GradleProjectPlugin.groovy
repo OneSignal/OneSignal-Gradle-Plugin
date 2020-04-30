@@ -192,6 +192,21 @@ class GradleProjectPlugin implements Plugin<Project> {
             ],
             '20.0.0': [
                 'com.google.firebase:firebase-messaging': '20.0.0'
+            ],
+            '20.1.0': [
+                'com.google.firebase:firebase-messaging': '20.1.1'
+            ],
+            '20.1.1': [
+                'com.google.firebase:firebase-messaging': '20.1.1'
+            ],
+            '20.1.2': [
+                'com.google.firebase:firebase-messaging': '20.1.1'
+            ],
+            '20.1.4': [
+                'com.google.firebase:firebase-messaging': '20.1.4'
+            ],
+            '20.1.5': [
+                'com.google.firebase:firebase-messaging': '20.1.4'
             ]
         ],
         'com.google.android.gms:play-services-measurement-base': [

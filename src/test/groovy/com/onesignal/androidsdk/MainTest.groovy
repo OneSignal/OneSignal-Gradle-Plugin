@@ -27,7 +27,7 @@ class MainTest extends Specification {
 
         then:
         results.each {
-            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.12.6')
+            assert it.value.contains('com.onesignal:OneSignal:[3.8.3, 3.99.99] -> 3.13.0')
         }
     }
 
@@ -944,6 +944,25 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
         results.each {
             assert it.value.contains('com.google.firebase:firebase-messaging:17.6.0 -> 18.0.0')
+        }
+    }
+
+    def 'when firebase-iid:20.1.6 ensure firebase-messaging:20.1.4'() {
+        def compileLines = """\
+            compile 'com.google.firebase:firebase-messaging:20.0.0'
+            compile 'com.google.firebase:firebase-iid:20.1.6'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : compileLines
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.firebase:firebase-messaging:20.0.0 -> 20.1.4')
         }
     }
 
