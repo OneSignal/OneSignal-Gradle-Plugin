@@ -1,1 +1,2 @@
+enableFeaturePreview('ONE_LOCKFILE_PER_PROJECT')
 rootProject.name = 'onesignal-gradle-plugin'
