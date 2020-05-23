@@ -168,6 +168,13 @@ class GradleProjectPlugin implements Plugin<Project> {
                 'com.google.firebase:firebase-messaging': '17.0.0'
             ]
         ],
+        'com.google.firebase:firebase-common': [
+            // Tested firebase-common:17.1.0 back to firebase-iid:10.2.1
+            '18.0.0': [
+                'com.google.firebase:firebase-iid': '19.0.0'
+            ]
+            // Tested up to firebase-common:19.3.0
+        ],
         'com.google.firebase:firebase-iid': [
             '16.2.0': [
                 'com.google.firebase:firebase-messaging': '17.1.0'
@@ -806,6 +813,18 @@ class GradleProjectPlugin implements Plugin<Project> {
         configuration.resolvedConfiguration.rethrowFailure()
     }
 
+    /**
+     * Given a child dependency this adds a minimum version dependency rule for any of it's parents.
+     * Gradle does NOT check if upgrading a dependency will break any of it's parent's when upgrading
+     *    so we do this here.
+     * This works off a whitelist defined in MODULE_DEPENDENCY_MINIMUMS today, however it
+     *    might be possible to generate on the fly in the future
+     * A request to build such a functionality into Gradle and an in depth explanation:
+     * https://github.com/gradle/gradle/issues/10170
+     * @param group - String - Gradle group such as "com.company"
+     * @param module - String - Gradle module such as "OneSignal"
+     * @param version - String - Exact version or a valid Gradle version range such as "[1.0.0, 2.0.0)"
+     */
     static void updateVersionModuleAligns(String group, String module, String version) {
         def inputModule = "$group:$module"
 
@@ -835,19 +854,29 @@ class GradleProjectPlugin implements Plugin<Project> {
 
                 if (parentModuleVersionEntry != null) {
                     def compareVersionResult = acceptedOrIntersectVersion(
-                        parentModuleEntry.value as String,
+                        parentModuleEntry.value,
                         parentModuleVersionEntry['version'] as String
                     )
                     if (compareVersionResult != parentModuleVersionEntry['version'])
-                        versionModuleAligns[parentModuleEntry.key]['version'] = parentModuleEntry.value
+                        updateVersionModuleAlignsKey(parentModuleEntry.key, parentModuleEntry.value)
                 }
                 else
-                    versionModuleAligns[parentModuleEntry.key] = [version: parentModuleEntry.value]
+                    updateVersionModuleAlignsKey(parentModuleEntry.key, parentModuleEntry.value)
             }
         }
 
         if (group == GROUP_GMS && module == 'play-services')
             hasFullPlayServices = true
+    }
+
+    static void updateVersionModuleAlignsKey(String groupAndModule, String version) {
+        versionModuleAligns[groupAndModule] = [version: version]
+
+        // Recursive call to check the parent of this parent rule we just added
+        // Updating a child dependency can have an upwards cascading affect through dependencies
+        def group = groupAndModule.split(':')[0]
+        def module = groupAndModule.split(':')[1]
+        updateVersionModuleAligns(group, module, version)
     }
 
     static boolean shouldSkipCalcIfParent(DependencyResult result) {

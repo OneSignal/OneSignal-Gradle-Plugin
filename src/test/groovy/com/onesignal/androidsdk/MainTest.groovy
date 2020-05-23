@@ -1023,6 +1023,25 @@ class MainTest extends Specification {
         }
     }
 
+    def 'when firebase-common:18.0.0 ensure firebase-iid:19.0.0 and a cascade firebase-messaging:18.0.0 update'() {
+        when:
+        def results = runGradleProject([
+            'android.useAndroidX': true,
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines: """
+                implementation 'com.google.firebase:firebase-messaging:[10.2.1, 17.3.99]'
+                implementation 'com.google.firebase:firebase-common:18.0.0'
+            """
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            assert it.value.contains('com.google.firebase:firebase-iid:18.0.0 -> 19.0.0')
+            assert it.value.contains('com.google.firebase:firebase-messaging:[10.2.1, 17.3.99] -> 18.0.0')
+        }
+    }
+
     def 'when firebase-app-unity and firebase-messaging'() {
         when:
         def results = runGradleProject([
