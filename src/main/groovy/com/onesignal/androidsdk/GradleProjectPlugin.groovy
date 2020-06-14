@@ -6,7 +6,8 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.DependencyResolveDetails
-import org.gradle.api.artifacts.result.DependencyResult
+import org.gradle.api.attributes.Attribute
+import org.gradle.api.attributes.Category
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionComparator
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionSelectorScheme
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.ExactVersionSelector
@@ -15,6 +16,7 @@ import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.SubVersi
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionParser
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionRangeSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.VersionSelector
+import org.gradle.api.internal.artifacts.result.DefaultResolvedDependencyResult
 
 import java.util.jar.Manifest
 
@@ -640,6 +642,9 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (omitModulesPostFix && name.endsWith(omitModulesPostFix))
             return false
 
+        if (name.endsWith('firebase-bom'))
+            return false
+
         true
     }
 
@@ -785,7 +790,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static void processIncomingResolutionResults(Configuration configuration) {
-        configuration.incoming.resolutionResult.allDependencies.each { DependencyResult dependencyResult ->
+        configuration.incoming.resolutionResult.allDependencies.each { DefaultResolvedDependencyResult dependencyResult ->
             def requestedArtifactParts = dependencyResult.requested.displayName.split(':')
 
             // String didn't contain all parts, most likely a project result so skip
@@ -799,7 +804,7 @@ class GradleProjectPlugin implements Plugin<Project> {
             updateVersionModuleAligns(group, module, version)
 
             // Ignore Google's inner dependencies when deciding on what version align groups with
-            if (shouldSkipCalcIfParent(dependencyResult))
+            if (parentIsGoogle(dependencyResult))
                 return
 
             if (!inGroupAlignListFindByStrings(group, module))
@@ -885,7 +890,21 @@ class GradleProjectPlugin implements Plugin<Project> {
         updateVersionModuleAligns(group, module, version)
     }
 
-    static boolean shouldSkipCalcIfParent(DependencyResult result) {
+    // We want to prevent Google libraries interdependencies influencing versions
+    // Example: Such as firebase-message depending on an exact androidx which would override a version range
+    // So we want to use versions from dependencies on the project, Gradle BOM (such as firebase-bom),
+    //   and non-Google libraries (such as OneSignal)
+    static boolean parentIsGoogle(DefaultResolvedDependencyResult result) {
+        //  Ensure we don't skip dependency values from BOMs (bill of materials)
+        // variants is not in Gradle 2.14.1 but it is fine since BOM was not added until 5.0
+       if (result.from.hasProperty('variants')) {
+           def category = result.from.variants[0].attributes.getAttribute(Attribute.of('org.gradle.category', String.class))
+           // null category means dependency declared at the project level.
+           if (category == null || category == Category.REGULAR_PLATFORM || category == Category.ENFORCED_PLATFORM)
+               return false
+       }
+
+        // Check the parent group on this dependency if it's parent is from a library
         def group = result.from.id.displayName.split(':')[0]
         SKIP_CALC_WHEN_PARENT.contains(group)
     }
