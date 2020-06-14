@@ -235,17 +235,6 @@ class GradleProjectPlugin implements Plugin<Project> {
         ]
     ]
 
-    // List containing all child entries of MODULE_DEPENDENCY_MINIMUMS
-    static Map<String, Boolean> MODULES_MINIMUMS_TO_TRACK
-    static void generateMinModulesToTrackStatic() {
-        MODULES_MINIMUMS_TO_TRACK = [:]
-        MODULE_DEPENDENCY_MINIMUMS.each { parentModule, parentVersion ->
-            parentVersion.each { childModule, _childVersion ->
-                MODULES_MINIMUMS_TO_TRACK[childModule] = true
-            }
-        }
-    }
-
     static Map<String, Object> versionModuleAligns
 
     static def versionGroupAligns
@@ -280,8 +269,6 @@ class GradleProjectPlugin implements Plugin<Project> {
         copiedModules = [:]
         shownWarnings = [:]
         versionModuleAligns = [:]
-
-        generateMinModulesToTrackStatic()
 
         disableGMSVersionChecks()
         detectProjectState()
@@ -828,21 +815,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     static void updateVersionModuleAligns(String group, String module, String version) {
         def inputModule = "$group:$module"
 
-        // 1. Sets or updates versionModuleAligns of modules we need to enforce min versions on
-        if (MODULES_MINIMUMS_TO_TRACK[inputModule]) {
-            def curOverrideVersion = versionModuleAligns[inputModule]
-            if (curOverrideVersion) {
-                curOverrideVersion['version'] =
-                    acceptedOrIntersectVersion(
-                        version,
-                        curOverrideVersion['version'] as String
-                    )
-            }
-            else
-                versionModuleAligns[inputModule] = [version: version]
-        }
-
-        // 2. When we get a dependent version value parent's to a min version if needed
+        // When we get a dependent version value parent's to a min version if needed
         def rule = MODULE_DEPENDENCY_MINIMUMS[inputModule]
         rule.each { parentVersion, dependentChildMinVersion ->
             def exactVersion = new ExactVersionSelector(parentVersion)
