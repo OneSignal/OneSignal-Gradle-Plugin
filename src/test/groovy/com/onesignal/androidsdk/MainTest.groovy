@@ -825,6 +825,71 @@ class MainTest extends Specification {
         }
     }
 
+    def 'fcm 15 and crashlytics with firebase platform BOM'() {
+        when:
+        def results = runGradleProject([
+            'android.useAndroidX': true,
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : """\
+                implementation platform('com.google.firebase:firebase-bom:25.4.1')
+                implementation 'com.google.firebase:firebase-messaging:15.0.0'
+                implementation 'com.google.firebase:firebase-crashlytics'
+            """
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            // 1. Ensure firebase-bom is allowed to upgrade firebase-messaging
+            assert it.value.contains('com.google.firebase:firebase-messaging:15.0.0 -> 20.2.0')
+            // 2. Ensure version from firebase-bom is used and we don't try to downgrade
+            assert it.value.contains('com.google.firebase:firebase-crashlytics -> 17.0.1')
+        }
+    }
+
+    def 'pre-15 firebase with firebase-bom platform 17 BOM'() {
+        when:
+        def results = runGradleProject([
+            'android.useAndroidX': true,
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : """\
+                implementation platform('com.google.firebase:firebase-bom:17.0.0')
+                implementation 'com.google.firebase:firebase-messaging:12.0.0'
+            """
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            // 1. Ensure firebase-bom is allowed to upgrade firebase-messaging
+            assert it.value.contains('com.google.firebase:firebase-messaging:12.0.0 -> 17.5.0')
+            // 2. Ensures this sub dependency get force downgraded to 12.0.0
+            assert it.value.contains("com.google.firebase:firebase-measurement-connector:17.0.1${NEW_LINE}")
+        }
+    }
+
+    def 'fcm 15 and crashlytics with firebase enforcedPlatform BOM'() {
+        when:
+        def results = runGradleProject([
+            'android.useAndroidX': true,
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            compileLines : """\
+                implementation enforcedPlatform('com.google.firebase:firebase-bom:25.4.1')
+                implementation 'com.google.firebase:firebase-messaging:15.0.0'
+                implementation 'com.google.firebase:firebase-crashlytics'
+            """
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+        results.each {
+            // 1. Ensure firebase-bom is allowed to upgrade firebase-messaging
+            assert it.value.contains('com.google.firebase:firebase-messaging:15.0.0 -> 20.2.0')
+            // 2. Ensure version from firebase-bom is used and we don't try to downgrade
+            assert it.value.contains('com.google.firebase:firebase-crashlytics -> 17.0.1')
+        }
+    }
+
     def 'when firebase-core:16 and firebase-messaging:15.0.2 upgrade to firebase-messaging:17.0.0'() {
         def compileLines = """\
             compile 'com.google.firebase:firebase-messaging:15.0.2'
@@ -1251,10 +1316,17 @@ class MainTest extends Specification {
         GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']] // , '--info']]
         when:
         def results = runGradleProject([
+            'android.useAndroidX': true,
+            'android.enableJetifier': true,
             compileLines: """
-                compile 'com.android.support:appcompat-v7:26.0.0'
-                compile 'com.google.firebase:firebase-messaging:15.0.2'
-                compile 'com.google.firebase:firebase-core:16.0.0'
+//                implementation 'com.onesignal:OneSignal:3.13.2'
+                implementation 'com.google.firebase:firebase-messaging:10.2.1'
+
+//                implementation 'com.google.firebase:firebase-iid:17.0.3'
+                implementation 'com.google.firebase:firebase-common:17.1.0'
+
+//            implementation 'com.google.firebase:firebase-messaging:15.0.2'
+//            implementation 'com.google.firebase:firebase-core:16.0.0'
             """,
             skipGradleVersion: GRADLE_OLDEST_VERSION
         ])

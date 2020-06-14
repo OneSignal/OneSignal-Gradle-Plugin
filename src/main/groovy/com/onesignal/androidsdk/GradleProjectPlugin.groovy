@@ -553,6 +553,12 @@ class GradleProjectPlugin implements Plugin<Project> {
         def name = details.target.name
         def version = details.target.version
 
+        // null means it was added the project without a version number and must be driven by a BOM such as firebase-bom
+        // This means we have / will see the same dependency with a version again from the BOM as a constraint,
+        //    which can be overridden.
+        if (!version)
+            return
+
         String resolvedVersion = null
         def moduleOverride = versionModuleAligns["$group:$name"]
 
