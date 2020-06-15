@@ -13,7 +13,7 @@ buildscript {
     dependencies {
         // ...
         // OneSignal-Gradle-Plugin
-        classpath 'gradle.plugin.com.onesignal:onesignal-gradle-plugin:[0.12.7, 0.99.99]'
+        classpath 'gradle.plugin.com.onesignal:onesignal-gradle-plugin:[0.12.8, 0.99.99]'
     }
 }
 ```
@@ -40,7 +40,7 @@ Applies to the following libraries:
 ## Compatibility
 * Recommend using AGP 3.0.0 or newer ([Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin)) and Gradle 4.1 or newer.
   - Compatible with Gradle 2.14.1+ and AGP 2.2.3+
-  - Tested up to Gradle 5.5.1 and AGP 3.4.2
+  - Tested up to Gradle 6.5 and AGP 4.0.0
 
 ## Change Log
 See this repository's [release tags](https://github.com/OneSignal/OneSignal-Gradle-Plugin/releases) for a complete change log.
