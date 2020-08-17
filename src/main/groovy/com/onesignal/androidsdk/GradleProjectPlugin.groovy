@@ -529,10 +529,10 @@ class GradleProjectPlugin implements Plugin<Project> {
             if (maxSupportVersion)
                 maxSupportVersion
             else
-                LAST_MAJOR_ANDROID_SUPPORT_VERSION
+                LAST_MAJOR_ANDROID_SUPPORT_VERSION + ".+"
         }
         else
-            LAST_MAJOR_ANDROID_SUPPORT_VERSION
+            LAST_MAJOR_ANDROID_SUPPORT_VERSION + ".+"
     }
 
     static void overrideVersion(DependencyResolveDetails details, String groupVersionOverride) {
