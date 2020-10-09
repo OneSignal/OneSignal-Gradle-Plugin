@@ -22,7 +22,12 @@ class MainTest extends Specification {
         // 1.Ensure one or more results exist
         assert results
 
-        // 2. Run test specific asserts
+        // 2. Ensure we don't have any failures
+        results.each {
+            assert !it.value.contains('FAILED')
+        }
+
+        // 3. Run test specific asserts
         results.each {
             closure(it)
         }
