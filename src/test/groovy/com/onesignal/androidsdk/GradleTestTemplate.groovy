@@ -21,13 +21,13 @@ class GradleTestTemplate {
     // Set to '--info' or '--stacktrace' to debug issues
     static def GRADLE_LOG_LEVEL = null
 
-    static def GRADLE_LATEST_VERSION = '6.5'
+    static def GRADLE_LATEST_VERSION = '6.6.1'
     static def GRADLE_OLDEST_VERSION = '2.14.1'
 
     static void setup() {
         gradleVersions = [
             (GRADLE_OLDEST_VERSION): 'com.android.tools.build:gradle:2.2.3',
-            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:4.0.0'
+            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:4.0.2'
         ]
 
         buildArgumentSets = [
