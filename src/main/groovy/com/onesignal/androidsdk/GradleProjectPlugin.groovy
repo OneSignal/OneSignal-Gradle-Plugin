@@ -232,7 +232,8 @@ class GradleProjectPlugin implements Plugin<Project> {
         ],
         'com.google.android.gms:play-services-basement': [
             '16.0.1': [
-                'com.google.firebase:firebase-messaging': '17.3.3'
+                'com.google.firebase:firebase-messaging': '17.3.3',
+                'com.google.android.gms:play-services-base': '16.0.1',
             ],
             '17.0.0': [
                 'com.google.android.gms:play-services-base': '17.0.0'
