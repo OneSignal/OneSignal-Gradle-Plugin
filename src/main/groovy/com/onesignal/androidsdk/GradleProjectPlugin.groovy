@@ -166,7 +166,8 @@ class GradleProjectPlugin implements Plugin<Project> {
         'com.google.firebase:firebase-core': [
             '16.0.0': [
                 'com.google.firebase:firebase-messaging': '17.0.0'
-            ]
+            ],
+            // Tested up to firebase-core:17.5.1
         ],
         'com.google.firebase:firebase-common': [
             // Tested firebase-common:17.1.0 back to firebase-iid:10.2.1
@@ -218,7 +219,11 @@ class GradleProjectPlugin implements Plugin<Project> {
             ],
             '20.1.5': [
                 'com.google.firebase:firebase-messaging': '20.1.4'
-            ]
+            ],
+            '20.2.2': [
+                'com.google.firebase:firebase-messaging': '20.2.2'
+            ],
+            // Tested up to firebase-iid:20.3.0
         ],
         'com.google.android.gms:play-services-measurement-base': [
             '15.0.4': [
@@ -227,11 +232,16 @@ class GradleProjectPlugin implements Plugin<Project> {
         ],
         'com.google.android.gms:play-services-basement': [
             '16.0.1': [
-                'com.google.firebase:firebase-messaging': '17.3.3'
+                'com.google.firebase:firebase-messaging': '17.3.3',
+                'com.google.android.gms:play-services-base': '16.0.1',
             ],
             '17.0.0': [
                 'com.google.android.gms:play-services-base': '17.0.0'
-            ]
+            ],
+            '17.1.0': [
+                'com.google.firebase:firebase-messaging': '19.0.0'
+            ],
+            // Tested up to play-services-basement:17.4.0
         ]
     ]
 
