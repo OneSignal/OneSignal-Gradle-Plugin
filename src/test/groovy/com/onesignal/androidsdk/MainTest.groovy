@@ -1295,11 +1295,11 @@ class MainTest extends Specification {
         when:
         def results = runGradleProject([
             compileLines: """
-                compile 'com.android.support:appcompat-v7:26.0.0'
-                compile 'com.google.firebase:firebase-messaging:15.0.2'
-                compile 'com.google.firebase:firebase-core:16.0.0'
+    implementation 'com.google.android.gms:play-services-base:15.0.1'
+    implementation 'com.google.android.gms:play-services-basement:17.4.0'
             """,
-            skipGradleVersion: GRADLE_OLDEST_VERSION
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            'android.useAndroidX': true,
         ])
 
         then:
