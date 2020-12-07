@@ -342,13 +342,72 @@ class GradleProjectPlugin implements Plugin<Project> {
     }
 
     static String getAGPVersion(Plugin plugin) {
+        def pluginVersion = getAGPVersionFromAndroidClass()
+        if (pluginVersion)
+            return pluginVersion
+
+       pluginVersion = getAGPVersionFromJarManifest(plugin)
+        if (pluginVersion)
+            return pluginVersion
+
+        getAGPVersionByGradleVersion()
+    }
+
+    static String getAGPVersionFromAndroidClass() {
         try {
-            def cl = plugin.class.classLoader as URLClassLoader
-            def inputStream = cl.findResource('META-INF/MANIFEST.MF').openStream()
-            def manifest = new Manifest(inputStream)
-            return manifest.mainAttributes.getValue('Plugin-Version')
-        } catch (ignore) {}
+            return com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION
+        } catch(NoClassDefFoundError ignore) {
+            // Class may not be loaded, pre-AGP 3.0.0 version, or AGP made a breaking change
+            if (project)
+                project.logger.info("getAGPVersionFromAndroidVersionClass: com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION is not defined")
+        }
         null
+    }
+
+    // Only use as a fallback, use getAGPVersionFromAndroidClass() instead if it's available
+    static String getAGPVersionFromJarManifest(Plugin plugin) {
+        try {
+            def classLoader = plugin.class.classLoader as URLClassLoader
+            def inputStream = classLoader.findResource('META-INF/MANIFEST.MF').openStream()
+            def manifest = new Manifest(inputStream)
+            // In some cases 'Plugin-Version' will be "unspecified" as a value.
+            //   - Seen this value with some Cordova projects for an unknown reason.
+            def pluginVersionManifestValue = manifest.mainAttributes.getValue('Plugin-Version')
+            if (isValidVersionNumber(pluginVersionManifestValue))
+                return pluginVersionManifestValue
+            if (project)
+                project.logger.warn("Error 'Plugin-Version' of '$pluginVersionManifestValue' for '$plugin' is not a valid version number")
+        } catch (ignore) {
+            if (project)
+                project.logger.warn("Error reading 'META-INF/MANIFEST.MF' for '$plugin'")
+        }
+        null
+    }
+
+    // Only use as a fallback, use getAGPVersionFromAndroidClass() instead if it's available
+    static String getAGPVersionByGradleVersion() {
+        if (!project)
+            return null
+
+        // Making assumption that if they are using an older version of Gradle they are using an older version of AGP
+        if (compareVersions(project.gradle.gradleVersion, '4.1.0') == -1)
+            return '2.99.99'
+        else
+            return null
+
+        // List of min Gradle versions for each APG version
+        // https://developer.android.com/studio/releases/gradle-plugin#updating-gradle
+
+        // NOTE: Attempted to use the following to detect AGP 2.2.3 but in all attempts below the "Version" class was not found.
+        // com.android.build.gradle.internal.Version.ANDROID_GRADLE_PLUGIN_VERSION
+        // com.android.builder.model.Version.ANDROID_GRADLE_PLUGIN_VERSION
+        // com.android.builder.Version.getAndroidGradlePluginVersion()
+    }
+
+    static boolean isValidVersionNumber(String version) {
+        def versionParser = new VersionParser()
+        def parsedVersion = versionParser.transform(version)
+        parsedVersion.numericParts.length > 0 && parsedVersion.numericParts[0] != null
     }
 
     static void warnOnce(WarningType type, String msg) {
