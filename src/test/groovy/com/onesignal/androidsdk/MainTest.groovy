@@ -803,6 +803,29 @@ class MainTest extends Specification {
         }
     }
 
+    // Same as the test above but handles the afterEvaluate case. See a plugin that does this below
+    // https://github.com/dpa99c/cordova-plugin-firebasex/blob/11.0.3/src/android/build.gradle#L43
+    def 'can disable "Google Services Gradle Plugin" version checks with disableVersionCheck - even if added in afterEvaluate'() {
+        def compileLines = """\
+            compile 'com.onesignal:OneSignal:3.15.6'
+            compile 'com.google.android.gms:play-services-base:17.3.0'
+        """
+
+        when:
+        def results = runGradleProject([
+                skipGradleVersion: GRADLE_OLDEST_VERSION,
+                'android.useAndroidX': true,
+                'android.enableJetifier': true,
+                buildscriptDependencies: "classpath 'com.google.gms:google-services:4.3.4'",
+                applyPlugins: "afterEvaluate { apply plugin: 'com.google.gms.google-services' }",
+                compileLines : compileLines,
+        ])
+
+        then:
+        assertResults(results) {
+        }
+    }
+
     def 'gms 15 - Support for 12 and 15 version'() {
         def compileLines = """\
             compile 'com.google.android.gms:play-services-gcm:12.0.1'
