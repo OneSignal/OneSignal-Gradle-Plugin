@@ -758,6 +758,31 @@ class MainTest extends Specification {
         assert results // Asserting existence and contains 1+ entries
     }
 
+    def 'can disable "Google Services Gradle Plugin" version checks with disableVersionCheck'() {
+        // com.onesignal:OneSignal:3.15.6' defines a version range of play-services-base@[10.2.1, 16.1.99]
+        // 17.3.0 is outside of that but this is ok, since enableJetifier is enabled in this case.
+        // However "Google Services Gradle Plugin" thinks there is a version out of range and fails the build
+        // We are ensuring this plugin sets disableVersionCheck correctly to disable it
+        def compileLines = """\
+            compile 'com.onesignal:OneSignal:3.15.6'
+            compile 'com.google.android.gms:play-services-base:17.3.0'
+        """
+
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            'android.useAndroidX': true,
+            'android.enableJetifier': true,
+            buildscriptDependencies: "classpath 'com.google.gms:google-services:4.3.4'",
+            applyPlugins: "apply plugin: 'com.google.gms.google-services'",
+            compileLines : compileLines
+        ])
+
+        then:
+        assertResults(results) {
+        }
+    }
+
     def 'firebase 15 - keep mixed minor versions'() {
         def compileLines = """\
             compile 'com.google.firebase:firebase-ads:15.0.0'
