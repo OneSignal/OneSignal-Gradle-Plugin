@@ -303,10 +303,8 @@ class GradleProjectPlugin implements Plugin<Project> {
     // At fundamental level this OneSignal plugin and the gms version checks are solving the same problem
     // Disabling the version check part of the gms plugin with their flag
     static void disableGMSVersionChecks() {
-        project.afterEvaluate {
-            def googleServices = project.extensions.findByName('googleServices')
-            if (googleServices)
-                googleServices.disableVersionCheck = true
+        project.plugins.withType(Plugin) {
+            project.extensions.findByName('googleServices')?.disableVersionCheck = true
         }
     }
 
