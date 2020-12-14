@@ -783,6 +783,23 @@ class MainTest extends Specification {
         }
     }
 
+    // Makes sure we can detect the AGP version if it was applied from "apply from: 'filename.gradle'" file
+    // This requires a special edge case as "apply from:" doesn't not inherit the classpath from the host file.
+    // See https://github.com/gradle/gradle/issues/4007 for more details.
+    def 'can detect AGP version within an apply from .gradle file'() {
+        when:
+        def results = runGradleProject([
+            skipGradleVersion: GRADLE_OLDEST_VERSION,
+            onesignalPluginId: "id 'com.onesignal.androidsdk.onesignal-gradle-plugin' apply false",
+            applyFromFileContents: "apply plugin: 'com.onesignal.androidsdk.onesignal-gradle-plugin'"
+        ])
+
+        then:
+        assertResults(results) {
+            assert !it.value.contains(GradleProjectPlugin.WARNING_MSG_COULD_NOT_GET_AGP_VERSION)
+        }
+    }
+
     def 'firebase 15 - keep mixed minor versions'() {
         def compileLines = """\
             compile 'com.google.firebase:firebase-ads:15.0.0'

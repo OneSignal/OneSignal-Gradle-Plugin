@@ -139,6 +139,15 @@ class GradleTestTemplate {
         """
     }
 
+    static final def APPLY_FROM_FILE_NAME = 'applyFromFile.gradle'
+    static void createApplyFromFile(buildSections) {
+        if (buildSections['applyFromFileContents'] == null)
+            return
+
+        final gradleFile = testProjectDir.newFile(APPLY_FROM_FILE_NAME)
+        gradleFile << buildSections['applyFromFileContents']
+    }
+
     static void createBuildFile(buildSections) {
         testProjectDir = new TemporaryFolder()
         testProjectDir.create()
@@ -179,6 +188,12 @@ class GradleTestTemplate {
 
             apply plugin: 'com.android.application'
             ${buildSections['applyPlugins']}
+            ${
+                if (buildSections['applyFromFileContents'])
+                    "apply from: '${APPLY_FROM_FILE_NAME}'"
+                else
+                    ''
+            }
 
             android {
                 compileSdkVersion ${buildSections['compileSdkVersion']}
@@ -284,6 +299,7 @@ class GradleTestTemplate {
                 buildFile << buildFileStr
 
                 createSubProject(currentParams)
+                createApplyFromFile(currentParams)
                 createProguardFile()
 
                 // Uncomment to test with only the latest version of Gradle
