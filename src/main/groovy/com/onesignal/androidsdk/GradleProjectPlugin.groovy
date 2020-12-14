@@ -357,6 +357,10 @@ class GradleProjectPlugin implements Plugin<Project> {
         if (pluginVersion)
             return pluginVersion
 
+        pluginVersion = getAGPFromResolvedConfiguration()
+        if (pluginVersion)
+            return pluginVersion
+
         getAGPVersionByGradleVersion()
     }
 
@@ -389,6 +393,20 @@ class GradleProjectPlugin implements Plugin<Project> {
                 project.logger.warn("Error reading 'META-INF/MANIFEST.MF' for '$plugin'")
         }
         null
+    }
+
+    // Gets the AGP version when this plugin is applied from an "apply from:" file
+    static String getAGPFromResolvedConfiguration() {
+        if (!project)
+            return null
+        String agpVersion = null
+        project.buildscript.configurations.classpath.resolvedConfiguration.firstLevelModuleDependencies.each {
+            if (it.moduleGroup == 'com.android.tools.build' && it.moduleName == 'gradle') {
+                agpVersion = it.moduleVersion
+                return
+            }
+        }
+        return agpVersion;
     }
 
     // Only use as a fallback, use getAGPVersionFromAndroidClass() instead if it's available
