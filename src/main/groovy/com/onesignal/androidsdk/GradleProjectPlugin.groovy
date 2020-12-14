@@ -336,11 +336,12 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
+    static final def WARNING_MSG_COULD_NOT_GET_AGP_VERSION = 'OneSignal Warning: Could not get AGP plugin version'
     static boolean isAGPVersionOlderThan(Plugin plugin, String version) {
         def agpVersion = getAGPVersion(plugin)
         if (!agpVersion) {
             if (project)
-                project.logger.warn('OneSignal Warning: Could not get AGP plugin version')
+                project.logger.warn(WARNING_MSG_COULD_NOT_GET_AGP_VERSION)
             return false
         }
 
