@@ -1181,14 +1181,16 @@ class MainTest extends Specification {
     //   This is needed as we are making sure compile and runtime versions are not being miss aligned
     //   Asserts just a double check as Gradle or AGP fails to build when this happens
     def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26 with build tasks"() {
-        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']]
+        GradleTestTemplate.buildArgumentSets = [
+            '6.7.1':  [['build']]
+        ]
+        GradleTestTemplate.gradleVersions['6.7.1'] = 'com.android.tools.build:gradle:4.2.1'
 
         when:
         def results = runGradleProject([
             compileSdkVersion: 26,
             targetSdkVersion: 26,
-            compileLines: "compile 'com.onesignal:OneSignal:3.5.+'",
-            skipGradleVersion: GRADLE_OLDEST_VERSION
+            compileLines: "compile 'com.onesignal:OneSignal:3.5.+'"
         ])
 
         then:
