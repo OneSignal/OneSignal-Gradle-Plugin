@@ -27,7 +27,7 @@ class GradleTestTemplate {
     static void setup() {
         gradleVersions = [
             (GRADLE_OLDEST_VERSION): 'com.android.tools.build:gradle:2.2.3',
-            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:4.1.1'
+            (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:4.2.1'
         ]
 
         buildArgumentSets = [
@@ -113,9 +113,11 @@ class GradleTestTemplate {
         gradlePropertiesFile << """\
             android.useAndroidX=${buildSections['android.useAndroidX'] ?: false}
             android.enableJetifier=${buildSections['android.enableJetifier'] ?: false}
-            # Disable since it does not warn about some missing classes, such as firebase
+            # Disabling these since build tests that check for missing classes don't fail when there is a real issue
+            # Example: The test "test core and messaging - build" needs these to detect a problem
             android.enableR8=false
             android.enableD8=false
+            android.enableD8.desugaring=false
         """.stripIndent()
     }
 
