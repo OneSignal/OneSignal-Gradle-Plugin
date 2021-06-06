@@ -21,7 +21,7 @@ class GradleTestTemplate {
     // Set to '--info' or '--stacktrace' to debug issues
     static def GRADLE_LOG_LEVEL = null
 
-    static def GRADLE_LATEST_VERSION = '6.7.1'
+    static def GRADLE_LATEST_VERSION = '7.0.2'
     static def GRADLE_OLDEST_VERSION = '2.14.1'
 
     static void setup() {
