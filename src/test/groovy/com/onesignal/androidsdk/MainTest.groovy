@@ -1184,7 +1184,7 @@ class MainTest extends Specification {
         GradleTestTemplate.buildArgumentSets = [
             '6.7.1':  [['build']]
         ]
-        GradleTestTemplate.gradleVersions['6.7.1'] = 'com.android.tools.build:gradle:4.2.1'
+        GradleTestTemplate.gradleVersions['6.7.1'] = 'com.android.tools.build:gradle:4.1.1'
 
         when:
         def results = runGradleProject([
