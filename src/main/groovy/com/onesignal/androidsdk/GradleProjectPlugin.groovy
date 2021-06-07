@@ -336,11 +336,12 @@ class GradleProjectPlugin implements Plugin<Project> {
         }
     }
 
+    static final def WARNING_MSG_COULD_NOT_GET_AGP_VERSION = 'OneSignal Warning: Could not get AGP plugin version'
     static boolean isAGPVersionOlderThan(Plugin plugin, String version) {
         def agpVersion = getAGPVersion(plugin)
         if (!agpVersion) {
             if (project)
-                project.logger.warn('OneSignal Warning: Could not get AGP plugin version')
+                project.logger.warn(WARNING_MSG_COULD_NOT_GET_AGP_VERSION)
             return false
         }
 
@@ -353,6 +354,10 @@ class GradleProjectPlugin implements Plugin<Project> {
             return pluginVersion
 
        pluginVersion = getAGPVersionFromJarManifest(plugin)
+        if (pluginVersion)
+            return pluginVersion
+
+        pluginVersion = getAGPFromResolvedConfiguration()
         if (pluginVersion)
             return pluginVersion
 
@@ -388,6 +393,20 @@ class GradleProjectPlugin implements Plugin<Project> {
                 project.logger.warn("Error reading 'META-INF/MANIFEST.MF' for '$plugin'")
         }
         null
+    }
+
+    // Gets the AGP version when this plugin is applied from an "apply from:" file
+    static String getAGPFromResolvedConfiguration() {
+        if (!project)
+            return null
+        String agpVersion = null
+        project.buildscript.configurations.classpath.resolvedConfiguration.firstLevelModuleDependencies.each {
+            if (it.moduleGroup == 'com.android.tools.build' && it.moduleName == 'gradle') {
+                agpVersion = it.moduleVersion
+                return
+            }
+        }
+        return agpVersion;
     }
 
     // Only use as a fallback, use getAGPVersionFromAndroidClass() instead if it's available
