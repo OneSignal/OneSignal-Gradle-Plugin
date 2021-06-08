@@ -8,7 +8,7 @@ This Gradle plugin helps make the [OneSignal Android SDK](https://github.com/One
 buildscript {
     repositories {
         // ...
-        maven { url 'https://plugins.gradle.org/m2/' } // Gradle Plugin Portal 
+        gradlePluginPortal()
     }
     dependencies {
         // ...
