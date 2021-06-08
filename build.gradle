@@ -84,7 +84,7 @@ test {
 
 processResources {
     // Required by Gradle 7
-  duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
 }
 
 // Build for Local Testing
