@@ -13,6 +13,10 @@ class FullBuildTest extends Specification {
         GradleTestTemplate.setup()
     }
 
+    static assertResults(results, Closure closure) {
+        AssertHelpers.assertResults(results, closure)
+    }
+
     def runGradleProject(params) {
         GradleTestTemplate.runGradleProject(params)
     }
