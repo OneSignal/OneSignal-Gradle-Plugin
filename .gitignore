@@ -21,4 +21,3 @@ build/
 .gradle
 .idea
 *.iml
-gradle.properties

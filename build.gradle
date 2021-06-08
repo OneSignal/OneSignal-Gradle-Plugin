@@ -1,12 +1,13 @@
 plugins {
     id 'com.gradle.plugin-publish' version '0.11.0'
+    id 'maven-publish'
     id 'java-gradle-plugin'
 }
 
 repositories {
     maven { url 'https://maven.google.com' }
-    jcenter()
     mavenCentral()
+    jcenter()
 }
 
 apply plugin: 'groovy'
@@ -20,13 +21,13 @@ configurations.all {
 }
 
 dependencies {
-    compile gradleApi()
-    compile localGroovy()
+    implementation gradleApi()
+    implementation localGroovy()
 
     // These are compileOnly just so we can inspect these classes in IntelliJ
     // Android Gradle Plugin (AGP)
-    compileOnly 'com.android.tools.build:gradle:4.1.1'
-    testCompileOnly 'com.android.tools.build:gradle:4.1.1'
+    compileOnly 'com.android.tools.build:gradle:4.2.1'
+    testCompileOnly 'com.android.tools.build:gradle:4.2.1'
 
     // Google Play Services Gradle Plugin
     compileOnly 'com.google.gms:google-services:4.3.+'
@@ -36,9 +37,9 @@ dependencies {
     compileOnly 'com.google.android.gms:strict-version-matcher-plugin:1.2.+'
     testCompileOnly 'com.google.android.gms:strict-version-matcher-plugin:1.2.+'
 
-    testCompile gradleTestKit()
-    testCompile 'junit:junit:4.12'
-    testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
+    testImplementation gradleTestKit()
+    testImplementation 'junit:junit:4.12'
+    testImplementation('org.spockframework:spock-core:2.0-groovy-3.0') {
         exclude module: 'groovy-all'
     }
 }
@@ -73,20 +74,25 @@ gradlePlugin {
 }
 
 test {
+    // Required for Spock 2
+    useJUnitPlatform()
     testLogging {
         showStandardStreams = true
         exceptionFormat = 'full'
     }
 }
 
+processResources {
+    // Required by Gradle 7
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+}
 
 // Build for Local Testing
-apply plugin: 'maven'
-
-uploadArchives {
+publishing {
     repositories {
-        mavenDeployer {
-            repository(url: uri('../repo'))
+        maven {
+            name = 'localPluginRepository'
+            url = '../local-plugin-repository'
         }
     }
 }

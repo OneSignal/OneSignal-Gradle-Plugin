@@ -8,7 +8,6 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.DependencyResolveDetails
 import org.gradle.api.artifacts.result.DependencyResult
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionComparator
-import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.DefaultVersionSelectorScheme
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.ExactVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.LatestVersionSelector
 import org.gradle.api.internal.artifacts.ivyservice.ivyresolve.strategy.SubVersionSelector
@@ -50,7 +49,7 @@ import java.util.jar.Manifest
 
 class GradleProjectPlugin implements Plugin<Project> {
 
-    static final VERSION_SELECTOR_SCHEME = new DefaultVersionSelectorScheme(new DefaultVersionComparator())
+    static final VERSION_SELECTOR_SCHEME = DefaultVersionSelectorSchemeCompat.get()
 
     static final String GROUP_GMS = 'com.google.android.gms'
     static final String GROUP_ANDROID_SUPPORT = 'com.android.support'
@@ -1011,20 +1010,10 @@ class GradleProjectPlugin implements Plugin<Project> {
         versionSelector
     }
 
-
-    // VersionRangeSelector.intersect was introduced in Gradle 4.3, this is a compat wrapper method
-    static VersionRangeSelector intersectCompat(VersionRangeSelector inComing, VersionRangeSelector existing) {
-        if (inComing.metaClass.respondsTo(inComing, 'intersect', VersionRangeSelector, VersionRangeSelector))
-            return inComing.intersect(existing)
-
-        // This means we are on Gradle 4.2 or older so use compat version of intersect
-        VersionCompatHelpers.intersect(inComing, existing)
-    }
-
     // Returns the intersection range of two versions
     // If no over lap the higher of the two will be returned
     static VersionRangeSelector mergedIntersectOrHigher(VersionRangeSelector inComing, VersionRangeSelector existing) {
-        def intersectResult = intersectCompat(inComing, existing)
+        def intersectResult = VersionCompatHelpers.intersect(inComing, existing)
         if (intersectResult != null)
             return intersectResult
 

@@ -151,7 +151,7 @@ public class VersionCompatHelpers {
             return null;
         }
 
-        DefaultVersionSelectorScheme versionSelectorScheme = new DefaultVersionSelectorScheme(new DefaultVersionComparator());
+        VersionSelectorScheme versionSelectorScheme = DefaultVersionSelectorSchemeCompat.get();
         return (VersionRangeSelector)versionSelectorScheme.parseSelector(sb.toString());
     }
 
