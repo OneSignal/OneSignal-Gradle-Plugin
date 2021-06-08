@@ -17,7 +17,8 @@ before_script:
     - yes | sdkmanager "platforms;android-27"
     - chmod +x gradlew
 script:
-    - ./gradlew build
+    - ./gradlew test --tests "com.onesignal.androidsdk.MainTest"
+    - ./gradlew test --tests "com.onesignal.androidsdk.FullBuildTest"
 after_failure:
     - cat build/reports/lint-results.xml
     - cat build/outputs/lint-results-debug.xml

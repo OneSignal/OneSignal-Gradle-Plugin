@@ -19,18 +19,7 @@ class MainTest extends Specification {
     }
 
     static assertResults(results, Closure closure) {
-        // 1.Ensure one or more results exist
-        assert results
-
-        // 2. Ensure we don't have any failures
-        results.each {
-            assert !it.value.contains('FAILED')
-        }
-
-        // 3. Run test specific asserts
-        results.each {
-            closure(it)
-        }
+        AssertHelpers.assertResults(results, closure)
     }
 
     // This version range is in the OneSignal instructions
@@ -1177,44 +1166,6 @@ class MainTest extends Specification {
         }
     }
 
-    // Note: Slow 20 second test, this is doing a full build
-    //   This is needed as we are making sure compile and runtime versions are not being miss aligned
-    //   Asserts just a double check as Gradle or AGP fails to build when this happens
-    def "Upgrade to compatible OneSignal SDK when targetSdkVersion is 26 with build tasks"() {
-        GradleTestTemplate.buildArgumentSets = [
-            '6.7.1':  [['build']]
-        ]
-        GradleTestTemplate.gradleVersions['6.7.1'] = 'com.android.tools.build:gradle:4.1.1'
-
-        when:
-        def results = runGradleProject([
-            compileSdkVersion: 26,
-            targetSdkVersion: 26,
-            compileLines: "compile 'com.onesignal:OneSignal:3.5.+'"
-        ])
-
-        then:
-        assert results // Asserting existence and contains 1+ entries
-    }
-
-
-    // Note: Slow 20 second test, this is doing a full build
-    def 'Full build on project with sub project prints no errors'() {
-        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']]
-
-        when:
-        def results = runGradleProject([
-            skipGradleVersion: GRADLE_OLDEST_VERSION,
-            subProjectCompileLines: """\
-                compile 'com.onesignal:OneSignal:3.6.4'
-            """
-        ])
-
-        then:
-        assertResults(results) {
-            assert !it.value.toLowerCase().contains('failure')
-        }
-    }
     def 'upgrade support library to 25 when gms is 11.2.0'() {
         def compileLines = """\
             compile 'com.google.android.gms:play-services-base:11.2.0'
@@ -1306,7 +1257,6 @@ class MainTest extends Specification {
         }
     }
 
-
     // Note: Run manually to find the min compileSdkVersion for each support version
     def 'Find min-support version for compileSdkVersion'() {
         GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['compileDebugSources']]
@@ -1323,53 +1273,5 @@ class MainTest extends Specification {
 
         then:
         assert results // Asserting existence and contains 1+ entries
-    }
-
-    // This test is designed to fail with new Google releases
-    //   - This is a flag to know we need to make a change in this plugin to resolve version conflicts
-    // Run manually search for "Warning:".
-    def 'Find min-support for Firebase and GMS - build'() {
-        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']]
-        when:
-        // Keep as '+' for latest when checking in to this fails when Google changes requirements
-        def results = runGradleProject([
-            'android.useAndroidX': true,
-            compileLines: """
-                compile 'com.google.android.gms:play-services-ads:+'
-                compile 'com.google.android.gms:play-services-base:+'
-                compile 'com.google.android.gms:play-services-location:+'
-//              compile 'com.onesignal:OneSignal:[3.11.1, 3.99.99]' // TODO: Need to fix, see note below
-            """,
-            skipGradleVersion: GRADLE_OLDEST_VERSION
-        ])
-        // NOTE: There is a mix between AndroidX and the Android Support Library.
-        //       One to this test may cause duplicated or missing classes with either of these
-        //       Might need to follow the AndroidX migration guide to fix and re-add support library
-
-        then:
-        assert results // Assert success
-    }
-
-    // Run manually search for "Warning:".
-    //    If a support library class is listed
-    //      then the support library needs to be updated for the firebase / GMS version
-    def 'test core and messaging - build'() {
-        // Other run options that can be manually run to help debug the issue
-        // GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['checkReleaseDuplicateClasses', '--info']]
-        // GradleTestTemplate.buildArgumentSets[GRADLE_OLDEST_VERSION] = [['transformClassesAndResourcesWithProguardForDebug', '--info']]
-        // GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['dependencies', '--configuration', 'debugCompileClasspath', '--info']]
-        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['build']] // , '--info']]
-        when:
-        def results = runGradleProject([
-            compileLines: """
-    implementation 'com.google.android.gms:play-services-base:15.0.1'
-    implementation 'com.google.android.gms:play-services-basement:17.4.0'
-            """,
-            skipGradleVersion: GRADLE_OLDEST_VERSION,
-            'android.useAndroidX': true,
-        ])
-
-        then:
-        assert results // Assert success
     }
 }
