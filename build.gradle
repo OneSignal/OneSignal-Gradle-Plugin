@@ -29,6 +29,11 @@ compileJava {
     targetCompatibility = '1.8'
 }
 
+compileGroovy {
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+}
+
 dependencies {
     implementation gradleApi()
     implementation localGroovy()
