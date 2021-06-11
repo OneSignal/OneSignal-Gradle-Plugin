@@ -1,5 +1,5 @@
 plugins {
-    id 'com.gradle.plugin-publish' version '0.11.0'
+    id 'com.gradle.plugin-publish' version '0.15.0'
     id 'maven-publish'
     id 'java-gradle-plugin'
 }
@@ -45,7 +45,7 @@ dependencies {
 }
 
 
-group = 'com.onesignal'
+group = 'gradle.plugin.com.onesignal'
 version = '0.13.0'
 description 'OneSignal Gradle Plugin'
 // Run to upload a new version to the Gradle Plugin Portal
