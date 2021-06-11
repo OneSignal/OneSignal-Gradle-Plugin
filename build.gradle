@@ -20,6 +20,15 @@ configurations.all {
     it.resolutionStrategy.activateDependencyLocking()
 }
 
+// NOTE: Take caution when updating targetCompatibility,
+//       it will become minimum required JVM version for projects consuming this plugin.
+//       This value is mapped to "org.gradle.jvm.version" published in the .module file.
+//       Run "./gradlew outgoingVariants --variant runtimeElements" to confirm the version
+compileJava {
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+}
+
 dependencies {
     implementation gradleApi()
     implementation localGroovy()
