@@ -102,11 +102,11 @@ publishing {
 }
 // ## Steps to use a local copy of this plugin to test
 // 1. Run from root to create local package
-//      ./gradlew uploadArchives
+//      ./gradlew publish
 // 2. In <projectRoot>/build.gradle of your test project add the following to buildscript -> repositories {..}
-//      maven { url uri('../../repo') }
-// 3. Update '../../repo' from above to your correct relative path
+//      maven { url uri('file://C:\\repos\\local-plugin-repository') }
+// 3. Update file:// from above to your correct path
 // 4. Add to buildscript -> dependencies
-//      classpath 'com.onesignal:onesignal-gradle-plugin:[0.13.2, 0.99.99]'
+//      classpath 'gradle.plugin.com.onesignal:onesignal-gradle-plugin:[0.13.2, 0.99.99]'
 // 5. To your app/build.gradle add
 //      apply plugin: com.onesignal.androidsdk.GradleProjectPlugin
