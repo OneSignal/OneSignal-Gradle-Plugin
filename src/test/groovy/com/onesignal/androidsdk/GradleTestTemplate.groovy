@@ -13,8 +13,8 @@ class GradleTestTemplate {
     static def buildArgumentSets = [:]
 
     static def defaultBuildParams = [
-        compileSdkVersion: 28,
-        targetSdkVersion: 28,
+        compileSdkVersion: 30,
+        targetSdkVersion: 30,
         minSdkVersion: 16
     ]
 
@@ -199,7 +199,7 @@ class GradleTestTemplate {
 
             android {
                 compileSdkVersion ${buildSections['compileSdkVersion']}
-                buildToolsVersion '28.0.3'
+                buildToolsVersion '30.0.2'
                  defaultConfig {
                     applicationId 'com.app.example'
 
@@ -262,7 +262,7 @@ class GradleTestTemplate {
 
             android {
                 compileSdkVersion ${buildSections['compileSdkVersion']}
-                buildToolsVersion '28.0.3'
+                buildToolsVersion '30.0.2'
                  defaultConfig {
                     minSdkVersion ${buildSections['minSdkVersion']}
                 }
