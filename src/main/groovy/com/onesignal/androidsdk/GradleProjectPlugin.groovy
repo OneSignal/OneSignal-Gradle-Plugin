@@ -53,6 +53,7 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     static final String GROUP_GMS = 'com.google.android.gms'
     static final String GROUP_ANDROID_SUPPORT = 'com.android.support'
+    static final String GROUP_ANDROIDX = 'androidx.work'
     static final String GROUP_FIREBASE = 'com.google.firebase'
     static final String GROUP_ONESIGNAL = 'com.onesignal'
 
@@ -101,7 +102,19 @@ class GradleProjectPlugin implements Plugin<Project> {
         // Exists only for UPDATE_PARENT_ON_DEPENDENCY_UPGRADE
         (GROUP_ONESIGNAL): [
             version: NO_REF_VERSION
-        ]
+        ],
+
+        // Exists only for MODULE_DEPENDENCY_MAX_ANDROID_COMPILE_SDK
+        (GROUP_ANDROIDX): [
+            version: NO_REF_VERSION
+        ],
+    ]
+
+    // Sets an upper limit for specific modules based on the compileSdkVersion
+    static final Map<String, Map<Integer, String>> MODULE_DEPENDENCY_MAX_ANDROID_COMPILE_SDK = [
+        'androidx.work:work-runtime': [
+            30: '2.6.+',
+        ],
     ]
 
 
@@ -941,8 +954,19 @@ class GradleProjectPlugin implements Plugin<Project> {
             }
         }
 
+        updateVersionModuleAlignsForCompileSdkVersion(inputModule)
+
         if (group == GROUP_GMS && module == 'play-services')
             hasFullPlayServices = true
+    }
+
+    static void updateVersionModuleAlignsForCompileSdkVersion(String module) {
+        def compileVersion = getCompileSdkVersion()
+        MODULE_DEPENDENCY_MAX_ANDROID_COMPILE_SDK[module].each {maxSdkVersion , versionMax ->
+            if (compileVersion <= maxSdkVersion) {
+                versionModuleAligns[module] = [version: versionMax]
+            }
+        }
     }
 
     static void updateVersionModuleAlignsKey(String groupAndModule, String version) {
