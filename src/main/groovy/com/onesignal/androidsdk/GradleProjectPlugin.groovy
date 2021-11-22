@@ -615,8 +615,12 @@ class GradleProjectPlugin implements Plugin<Project> {
         versionOverride['version'] = newMaxVersion
     }
 
+    static int getCompileSdkVersion() {
+        (project.android.compileSdkVersion as String).split('-')[1].toInteger()
+    }
+
     static String maxAndroidSupportVersion(Map<Integer, String> maxSupportVersionObj) {
-        def compileSdkVersion = (project.android.compileSdkVersion as String).split('-')[1].toInteger()
+        def compileSdkVersion = getCompileSdkVersion()
         if (compileSdkVersion <= LAST_MAJOR_ANDROID_SUPPORT_VERSION) {
             String maxSupportVersion = maxSupportVersionObj[compileSdkVersion]
             if (maxSupportVersion)
