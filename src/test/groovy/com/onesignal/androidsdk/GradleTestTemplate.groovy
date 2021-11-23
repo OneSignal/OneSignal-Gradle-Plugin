@@ -13,7 +13,7 @@ class GradleTestTemplate {
     static def buildArgumentSets = [:]
 
     static def defaultBuildParams = [
-        compileSdkVersion: 30,
+        compileSdkVersion: 31,
         targetSdkVersion: 30,
         minSdkVersion: 16
     ]
@@ -162,6 +162,7 @@ class GradleTestTemplate {
             buildscript {
                 repositories {
                     maven { url 'https://maven.google.com' }
+                    mavenCentral()
                     jcenter()
                 }
                 dependencies {
@@ -184,6 +185,7 @@ class GradleTestTemplate {
                     maven { url 'https://maven.google.com' }
                     // Local maven repo to test local libaries; such as firebase-app-unity
                     maven { url(uri('m2repository')) }
+                    mavenCentral()
                     jcenter()
                 }
             }
