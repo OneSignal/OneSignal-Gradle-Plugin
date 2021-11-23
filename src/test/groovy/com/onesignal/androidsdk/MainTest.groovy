@@ -1274,4 +1274,68 @@ class MainTest extends Specification {
         then:
         assert results // Asserting existence and contains 1+ entries
     }
+
+    // AGP task checkDebugAarMetadata has a build rule that checks for compileSdkVersion 31
+    // via a minCompileSdk property defined in the aar-metadata.properties in the work-runtime-2.7.0.aar
+    def runGradleProjectForCompileSdkVersion30WithWorkRuntime2_7_0() {
+        runGradleProject([
+            'android.useAndroidX': true,
+            compileSdkVersion: 30,
+            compileLines : "implementation 'androidx.work:work-runtime:[2.0.0, 2.7.0]'",
+            skipGradleVersion : GRADLE_OLDEST_VERSION,
+        ])
+    }
+
+    def 'compileSdkVersion 30 with work-runtime:2.7.0, passes checkDebugAarMetadata'() {
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['checkDebugAarMetadata']]
+
+        when:
+        def results = runGradleProjectForCompileSdkVersion30WithWorkRuntime2_7_0()
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+    }
+
+    def 'compileSdkVersion 30 with work-runtime:2.7.0, downgrades to 2.6.0'() {
+        when:
+        def results = runGradleProjectForCompileSdkVersion30WithWorkRuntime2_7_0()
+
+        then:
+        assertResults(results) {
+            assert it.value.contains('androidx.work:work-runtime:[2.0.0, 2.7.0] -> 2.6.0')
+        }
+    }
+
+    def 'compileSdkVersion 30 with onesignal:4.6.2, passes checkDebugAarMetadata'() {
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['checkDebugAarMetadata']]
+
+        when:
+        def results = runGradleProject([
+            'android.useAndroidX': true,
+            compileSdkVersion: 30,
+            compileLines : "implementation 'com.onesignal:OneSignal:4.6.2'",
+            skipGradleVersion : GRADLE_OLDEST_VERSION,
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+    }
+
+    def 'compileSdkVersion 30 with onesignal:4.6.2 & work-runtime:2.4.0 '() {
+        when:
+        def results = runGradleProject([
+            'android.useAndroidX': true,
+            compileSdkVersion: 30,
+            compileLines : '''
+                implementation 'com.onesignal:OneSignal:4.6.2'
+                implementation 'androidx.work:work-runtime:2.4.0'
+            ''',
+            skipGradleVersion : GRADLE_OLDEST_VERSION,
+        ])
+
+        then:
+        assertResults(results) {
+            assert it.value.contains('androidx.work:work-runtime:[2.1.0, 2.7.99] -> 2.4.0')
+        }
+    }
 }
