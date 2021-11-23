@@ -1305,4 +1305,37 @@ class MainTest extends Specification {
             assert it.value.contains('androidx.work:work-runtime:[2.0.0, 2.7.0] -> 2.6.0')
         }
     }
+
+    def 'compileSdkVersion 30 with onesignal:4.6.2, passes checkDebugAarMetadata'() {
+        GradleTestTemplate.buildArgumentSets[GRADLE_LATEST_VERSION] = [['checkDebugAarMetadata']]
+
+        when:
+        def results = runGradleProject([
+            'android.useAndroidX': true,
+            compileSdkVersion: 30,
+            compileLines : "implementation 'com.onesignal:OneSignal:4.6.2'",
+            skipGradleVersion : GRADLE_OLDEST_VERSION,
+        ])
+
+        then:
+        assert results // Asserting existence and contains 1+ entries
+    }
+
+    def 'compileSdkVersion 30 with onesignal:4.6.2 & work-runtime:2.4.0 '() {
+        when:
+        def results = runGradleProject([
+            'android.useAndroidX': true,
+            compileSdkVersion: 30,
+            compileLines : '''
+                implementation 'com.onesignal:OneSignal:4.6.2'
+                implementation 'androidx.work:work-runtime:2.4.0'
+            ''',
+            skipGradleVersion : GRADLE_OLDEST_VERSION,
+        ])
+
+        then:
+        assertResults(results) {
+            assert it.value.contains('androidx.work:work-runtime:[2.1.0, 2.7.99] -> 2.4.0')
+        }
+    }
 }

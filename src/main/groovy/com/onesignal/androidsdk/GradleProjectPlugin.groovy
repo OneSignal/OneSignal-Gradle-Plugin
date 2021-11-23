@@ -113,7 +113,7 @@ class GradleProjectPlugin implements Plugin<Project> {
     // Sets an upper limit for specific modules based on the compileSdkVersion
     static final Map<String, Map<Integer, String>> MODULE_DEPENDENCY_MAX_ANDROID_COMPILE_SDK = [
         'androidx.work:work-runtime': [
-            30: '2.6.+',
+            30: '[2.0.0, 2.6.99]',
         ],
     ]
 
