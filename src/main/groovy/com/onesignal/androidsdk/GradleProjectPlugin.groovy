@@ -289,6 +289,7 @@ class GradleProjectPlugin implements Plugin<Project> {
 
     @Override
     void apply(Project inProject) {
+        println("GradleProjectPlugin.groovy")
         project = inProject
         project.logger.info('Initializing OneSignal-Gradle-Plugin 0.14.0')
 
@@ -459,6 +460,12 @@ class GradleProjectPlugin implements Plugin<Project> {
         // project.gradle.projectsEvaluated { gradle ->  // gradle.allprojects {
         // However this does not work for library projects
         project.afterEvaluate {
+            /**
+             * resolutionHooksForAndroidPluginV3:project.android: extension 'android'
+             resolutionHooksForAndroidPluginV3:project.android.class: class com.android.build.gradle.internal.dsl.BaseAppModuleExtension_Decorated
+             */
+            println("resolutionHooksForAndroidPluginV3:project.android: " + project.android)
+            println("resolutionHooksForAndroidPluginV3:project.android.class: " + project.android.class)
             // variant only includes 'release' and 'debug'
             projectVariants().all { variant ->
                 // compileConfiguration is new in AGP 3.0.0
