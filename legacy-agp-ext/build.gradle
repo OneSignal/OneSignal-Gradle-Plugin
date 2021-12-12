@@ -1,0 +1,27 @@
+plugins {
+    id 'groovy'
+}
+
+group 'com.onesignal'
+version '1.0.0'
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+compileJava {
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+}
+
+compileGroovy {
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+}
+
+dependencies {
+    implementation localGroovy()
+    implementation gradleApi()
+    compileOnly 'com.android.tools.build:gradle:4.2.1'
+}

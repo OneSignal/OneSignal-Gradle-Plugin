@@ -38,6 +38,8 @@ dependencies {
     implementation gradleApi()
     implementation localGroovy()
 
+    implementation(project(':legacy-agp-ext'))
+
     // These are compileOnly just so we can inspect these classes in IntelliJ
     // Android Gradle Plugin (AGP)
     compileOnly 'com.android.tools.build:gradle:4.2.1'

@@ -1,2 +1,5 @@
 enableFeaturePreview('ONE_LOCKFILE_PER_PROJECT')
 rootProject.name = 'onesignal-gradle-plugin'
+include ':legacy-agp-ext'
+project(':legacy-agp-ext').projectDir = new File('legacy-agp-ext')
+
