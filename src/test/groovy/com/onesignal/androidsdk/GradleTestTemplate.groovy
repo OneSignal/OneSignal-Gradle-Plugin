@@ -22,18 +22,18 @@ class GradleTestTemplate {
     static def GRADLE_LOG_LEVEL = '--stacktrace'
 
     static def GRADLE_LATEST_VERSION = '7.1'
-    static def GRADLE_OLDEST_VERSION = '2.14.1'
+    static def GRADLE_OLDEST_VERSION = '6.7.1'
 
     static void setup() {
         gradleVersions = [
-            (GRADLE_OLDEST_VERSION): 'com.android.tools.build:gradle:2.2.3',
+            (GRADLE_OLDEST_VERSION): 'com.android.tools.build:gradle:4.2.1',
             (GRADLE_LATEST_VERSION): 'com.android.tools.build:gradle:4.2.1'
         ]
 
         buildArgumentSets = [
             (GRADLE_OLDEST_VERSION): [
                 ['dependencies', '--configuration', 'compile', GRADLE_LOG_LEVEL],
-                ['dependencies', '--configuration', '_debugCompile', GRADLE_LOG_LEVEL]
+                ['dependencies', '--configuration', 'debugCompileClasspath', GRADLE_LOG_LEVEL]
             ],
             (GRADLE_LATEST_VERSION): [
                 // compile does not work on it's own for tests since we use variant.compileConfiguration
