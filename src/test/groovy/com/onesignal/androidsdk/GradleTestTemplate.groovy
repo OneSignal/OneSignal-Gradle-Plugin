@@ -19,7 +19,7 @@ class GradleTestTemplate {
     ]
 
     // Set to '--info' or '--stacktrace' to debug issues
-    static def GRADLE_LOG_LEVEL = null
+    static def GRADLE_LOG_LEVEL = '--stacktrace'
 
     static def GRADLE_LATEST_VERSION = '7.1'
     static def GRADLE_OLDEST_VERSION = '2.14.1'
@@ -175,6 +175,7 @@ class GradleTestTemplate {
             plugins {
                 ${buildSections['onesignalPluginId']}
             }
+            println("HERE1 AFTER plugins { }")
             
             project.ext {
                  ${buildSections['projectExts']}
@@ -190,7 +191,9 @@ class GradleTestTemplate {
                 }
             }
 
+            println("HERE2 BEFORE apply plugin: 'com.android.application'")
             apply plugin: 'com.android.application'
+            println("HERE2 AFTER apply plugin: 'com.android.application'")
             ${buildSections['applyPlugins']}
             ${
                 if (buildSections['applyFromFileContents'])
