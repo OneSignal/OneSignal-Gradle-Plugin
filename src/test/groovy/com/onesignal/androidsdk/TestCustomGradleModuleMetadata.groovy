@@ -208,7 +208,7 @@ class TestCustomGradleModuleMetadata extends Specification {
         testProjectDir.create()
         testProjectDir.newFile('build.gradle') << rootBuildDotGradle(projectProps[LOCAL_REPO])
 
-        testProjectDir.newFile('gradle.properties')
+        testProjectDir.newFile('gradle.properties') << gradleDotProperties()
         testProjectDir.newFile('settings.gradle') << settingsDotGradle()
 
         testProjectDir.newFolder('app')
@@ -218,6 +218,12 @@ class TestCustomGradleModuleMetadata extends Specification {
         testProjectDir.newFile('app/src/main/AndroidManifest.xml') << androidManifest()
 
         testProjectDir
+    }
+
+    static gradleDotProperties() {
+        """\
+        android.useAndroidX=true
+        """
     }
 
     static String rootBuildDotGradle(Map<String, String> buildProps) {
@@ -249,18 +255,36 @@ class TestCustomGradleModuleMetadata extends Specification {
          """
             apply plugin: 'com.android.application'
 
-// 
-class CustomClass implements Comparable<Integer>, Serializable {
-    int value
+@CacheableRule
+abstract class WorkRuntimeCapabilitiesRule implements ComponentMetadataRule {
+    final myAttributeCompileSdkVersion = Attribute.of('custom.compileSdkVersion', Integer)
 
-    CustomClass(int value) {
-        this.value = value
-    }
+    // This could be called more than once if we downgrade
+    void execute(ComponentMetadataContext context) {
+        println("HERE WorkRuntimeCapabilitiesRule version: " + context.details.id.version)
+        if (context.details.id.version == "2.6.0") {
+            println("  Skipping older version")
+            return
+        }
+        println("  context.details: " + context.details)
+        context.details.allVariants {
+            println("  context.details.allVariants: " + it)
+            attributes {
+                attribute(myAttributeCompileSdkVersion, 31)
+            }
+        }
+// TODO: Why does using "releaseVariantReleaseApiPublication" as a base cause it to fail?
+        context.details.addVariant("custom.compileSdkVersion_require_min_30", "releaseVariantReleaseRuntimePublication") {
+            withDependencies {
+                add('androidx.work:work-runtime:2.6.0')
+            }
 
-    @Override
-    int compareTo(Integer o) {
-        println("HERE compareTO!!!!!!")
-        0
+            attributes {
+//                attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage, Usage.JAVA_RUNTIME))
+//                // TODO: Should remove instead of setting. Or if not possible to set 0 so it always uses this as a fallback
+                attribute(myAttributeCompileSdkVersion, 30)
+            }
+        }
     }
 }
 
@@ -286,6 +310,10 @@ class CustomClass implements Comparable<Integer>, Serializable {
             
             dependencies {
                 ${buildProps['compileLines']}
+
+                components {
+                    withModule('androidx.work:work-runtime', WorkRuntimeCapabilitiesRule)
+                }
             }
 
 // TODO: Integer seems to be exact, can't find how to define a minium
@@ -337,7 +365,8 @@ class CustomClass implements Comparable<Integer>, Serializable {
                 .withProjectDir(testProjectDir.root)
 //                .withArguments([':app:dependencies', '--configuration', 'debugCompileClasspath', '--info'])
 //                .withArguments(['app:build', '--scan'])
-                .withArguments(['-q', 'app:dependencyInsight', '--dependency', 'liba', '--configuration', 'debugCompileClasspath', '--stacktrace'])
+//                .withArguments(['-q', 'app:dependencyInsight', '--dependency', 'json', '--configuration', 'debugCompileClasspath', '--info'])
+                .withArguments(['-q', 'app:dependencyInsight', '--dependency', 'work-runtime', '--configuration', 'debugCompileClasspath', '--info'])
                 .withPluginClasspath()
                 .withGradleVersion('7.3.1')
                 .build()
@@ -349,7 +378,28 @@ class CustomClass implements Comparable<Integer>, Serializable {
     def 'testCompileSdkVersion'() {
         given:
         final compileLines = """\
-            implementation 'com.test.local:liba:[1.0.0, 2.0)'
+            implementation 'com.test.local:liba:1.1.0'
+        """
+        final props = [
+            (PROJECT_PROPS): [
+                (APP_GRADLE_DOT_BUILD_PROPS): [
+                    'compileSdkVersion': 31,
+                    'compileLines': compileLines
+                ]
+            ]
+        ]
+
+        when:
+        final results = runGradleProject(props)
+
+        then:
+        assert results.output.contains("com.test.local:liba:1.0.0$NEW_LINE")
+    }
+
+    def 'modify androidx variants to select correct version based on compileSdkVersion'() {
+        given:
+        final compileLines = """\
+            implementation 'androidx.work:work-runtime:[2.1.0, 2.7.99]'
         """
         final props = [
             (PROJECT_PROPS): [
@@ -364,7 +414,7 @@ class CustomClass implements Comparable<Integer>, Serializable {
         final results = runGradleProject(props)
 
         then:
-        assert results.output.contains("com.test.local:liba:1.0.0$NEW_LINE")
+        assert results.output.contains("androidx.work:work-runtime:[2.1.0, 2.7.99] -> 2.6.0")
     }
 }
 
@@ -372,13 +422,15 @@ class CustomClass implements Comparable<Integer>, Serializable {
 /**
  * # Notes
  * ## Goals
- * This is to help understand how Gradle Module Metadata wroks (.module files) and how interduce custom proprties.
- * Some the ideas are to slove the issues outline here:
+ * This is to help understand how Gradle Module Metadata works (.module files) and how to introduce custom attributes.
+ * Some the ideas are to solve the issues outline here:
  *    - https://blog.gradle.org/alignment-with-gradle-module-metadata
  *    - https://issuetracker.google.com/issues/209034970
  * ## Questions
  * 1. How do I define a custom module attribute as a minimum value?
  *    - If I use an Integer it requires the values to match instead.
+ *    - https://discuss.gradle.org/t/gradle-module-metadata-attributes-how-do-i-define-minimum-integer-value-to-select-the-correct-variant-in-a-module/41605
+ *    - Could use org.gradle.jvm.version, pickLast, ordered instead of Integer to do this.
  * ## Bugs
  * 1. Gradle BUG - If app asks for a version range of a library and
  *    the .module of the most recent version doesn't contain a compatible variant it won't downgrade.
@@ -388,5 +440,4 @@ class CustomClass implements Comparable<Integer>, Serializable {
  *          Unless maybe strict is used?
  *        - I think this would work even if a the module included a POM too. As one would be not picked until
  *          a usable variant is found.
- *
  */
