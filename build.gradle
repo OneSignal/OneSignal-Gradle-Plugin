@@ -100,7 +100,8 @@ gradlePlugin {
     plugins {
         plugin {
             id = 'com.onesignal.androidsdk.onesignal-gradle-plugin'
-            implementationClass = 'com.onesignal.androidsdk.GradleProjectPlugin'
+            implementationClass = 'com.onesignal.androidsdk.OneSignalPlugin'
+            //implementationClass = 'com.onesignal.androidsdk.GradleProjectPlugin'
         }
     }
 }
