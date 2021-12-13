@@ -53,12 +53,18 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.31"
     implementation "org.jetbrains.kotlin:kotlin-script-runtime:1.5.31"
 
-    implementation(project(':legacy-agp-ext'))
+    testImplementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.31"
+    testImplementation "org.jetbrains.kotlin:kotlin-script-runtime:1.5.31"
 
-    // These are compileOnly just so we can inspect these classes in IntelliJ
-    // Android Gradle Plugin (AGP)
-    compileOnly 'com.android.tools.build:gradle:4.2.1'
-    testCompileOnly 'com.android.tools.build:gradle:4.2.1'
+    compileOnly("com.google.guava:guava:31.0.1-jre")
+    testImplementation("com.google.guava:guava:31.0.1-jre")
+
+    compileOnly(project(':legacy-agp-ext'))
+
+    // NOTE: Keep as api, needed to runs tests and should be there as a dependency to
+    // indicate it is used with the Android Gradle Plugin.
+    // TODO: Define a rich version with a range we can support
+    api 'com.android.tools.build:gradle:4.2.1'
 
     // Google Play Services Gradle Plugin
     compileOnly 'com.google.gms:google-services:4.3.+'
