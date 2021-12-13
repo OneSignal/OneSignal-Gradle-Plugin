@@ -1,5 +1,6 @@
 package com.onesignal.androidsdk
 
+import org.gradle.testfixtures.ProjectBuilder
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.rules.TemporaryFolder
 import spock.lang.Specification
@@ -228,15 +229,19 @@ class TestCustomGradleModuleMetadata extends Specification {
 
     static String rootBuildDotGradle(Map<String, String> buildProps) {
         """
-            buildscript {
-                repositories {
-                    google()
-                    mavenCentral()
-                }
-                dependencies {
-                    classpath 'com.android.tools.build:gradle:7.0.3'
-                }
-            }
+//   Moved this section into app/build.gradle.
+//   In a normal project this is where you would want this buildscript block
+//   (and it does work in a real project) however in tests this cause our plugin
+//   not to see AGP due to some unkown difference with the classloader in tests.
+//            buildscript {
+//                repositories {
+//                    google()
+//                    mavenCentral()
+//                }
+//                dependencies {
+//                    classpath 'com.android.tools.build:gradle:4.2.1'
+//                }
+//            }
 
             allprojects {
                 repositories {
@@ -253,40 +258,19 @@ class TestCustomGradleModuleMetadata extends Specification {
 
     static String appBuildDotGradle(Map<String, String> buildProps) {
          """
-            apply plugin: 'com.android.application'
-
-@CacheableRule
-abstract class WorkRuntimeCapabilitiesRule implements ComponentMetadataRule {
-    final myAttributeCompileSdkVersion = Attribute.of('custom.compileSdkVersion', Integer)
-
-    // This could be called more than once if we downgrade
-    void execute(ComponentMetadataContext context) {
-        println("HERE WorkRuntimeCapabilitiesRule version: " + context.details.id.version)
-        if (context.details.id.version == "2.6.0") {
-            println("  Skipping older version")
-            return
-        }
-        println("  context.details: " + context.details)
-        context.details.allVariants {
-            println("  context.details.allVariants: " + it)
-            attributes {
-                attribute(myAttributeCompileSdkVersion, 31)
+            buildscript {
+                repositories {
+                    google()
+                    mavenCentral()
+                }
+                dependencies {
+                    classpath 'com.android.tools.build:gradle:4.2.1'
+                }
             }
-        }
-// TODO: Why does using "releaseVariantReleaseApiPublication" as a base cause it to fail?
-        context.details.addVariant("custom.compileSdkVersion_require_min_30", "releaseVariantReleaseRuntimePublication") {
-            withDependencies {
-                add('androidx.work:work-runtime:2.6.0')
+            plugins {
+                id 'com.android.application'
+                id 'com.onesignal.androidsdk.onesignal-gradle-plugin'
             }
-
-            attributes {
-//                attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(Usage, Usage.JAVA_RUNTIME))
-//                // TODO: Should remove instead of setting. Or if not possible to set 0 so it always uses this as a fallback
-                attribute(myAttributeCompileSdkVersion, 30)
-            }
-        }
-    }
-}
 
             android {
                 compileSdkVersion ${buildProps['compileSdkVersion']}
@@ -310,22 +294,8 @@ abstract class WorkRuntimeCapabilitiesRule implements ComponentMetadataRule {
             
             dependencies {
                 ${buildProps['compileLines']}
-
-                components {
-                    withModule('androidx.work:work-runtime', WorkRuntimeCapabilitiesRule)
-                }
             }
 
-// TODO: Integer seems to be exact, can't find how to define a minium
-            final myAttributeCompileSdkVersion = Attribute.of('custom.compileSdkVersion', Integer)
-            dependencies.attributesSchema {
-                attribute(myAttributeCompileSdkVersion)
-            }
-            configurations.all {
-                attributes {
-                    attribute(myAttributeCompileSdkVersion, 30)
-                }
-            }
 
 // Required for --scan
 //            gradleEnterprise {
@@ -360,13 +330,26 @@ abstract class WorkRuntimeCapabilitiesRule implements ComponentMetadataRule {
         final testProjectDir = createProject(props[PROJECT_PROPS])
         println("testProjectDir: ${testProjectDir.root}")
 
+//        println(" GradleRunner.create().pluginClasspath: ${GradleRunner.create().withPluginClasspath().pluginClasspath}")
+
+
+//        def project = ProjectBuilder.builder().build()
+//        project.buildscript.repositories {
+//            google()
+//        }
+//        project.buildscript.dependencies {
+//            classpath 'com.android.tools.build:gradle:7.0.3'
+//        }
+//        project.run
+
+
         final result =
             GradleRunner.create()
                 .withProjectDir(testProjectDir.root)
 //                .withArguments([':app:dependencies', '--configuration', 'debugCompileClasspath', '--info'])
 //                .withArguments(['app:build', '--scan'])
 //                .withArguments(['-q', 'app:dependencyInsight', '--dependency', 'json', '--configuration', 'debugCompileClasspath', '--info'])
-                .withArguments(['-q', 'app:dependencyInsight', '--dependency', 'work-runtime', '--configuration', 'debugCompileClasspath', '--info'])
+                .withArguments(['-q', ':app:dependencyInsight', '--dependency', 'work-runtime', '--configuration', 'debugCompileClasspath', '--info'])
                 .withPluginClasspath()
                 .withGradleVersion('7.3.1')
                 .build()
@@ -375,26 +358,26 @@ abstract class WorkRuntimeCapabilitiesRule implements ComponentMetadataRule {
     }
 
     // TEST if we define custom attributes for Gradle Model Metadata if it will select a lower compatible library for us.
-    def 'testCompileSdkVersion'() {
-        given:
-        final compileLines = """\
-            implementation 'com.test.local:liba:1.1.0'
-        """
-        final props = [
-            (PROJECT_PROPS): [
-                (APP_GRADLE_DOT_BUILD_PROPS): [
-                    'compileSdkVersion': 31,
-                    'compileLines': compileLines
-                ]
-            ]
-        ]
-
-        when:
-        final results = runGradleProject(props)
-
-        then:
-        assert results.output.contains("com.test.local:liba:1.0.0$NEW_LINE")
-    }
+//    def 'testCompileSdkVersion'() {
+//        given:
+//        final compileLines = """\
+//            implementation 'com.test.local:liba:[1.0.0, 2.0)'
+//        """
+//        final props = [
+//            (PROJECT_PROPS): [
+//                (APP_GRADLE_DOT_BUILD_PROPS): [
+//                    'compileSdkVersion': 31,
+//                    'compileLines': compileLines
+//                ]
+//            ]
+//        ]
+//
+//        when:
+//        final results = runGradleProject(props)
+//
+//        then:
+//        assert results.output.contains("com.test.local:liba:1.0.0$NEW_LINE")
+//    }
 
     def 'modify androidx variants to select correct version based on compileSdkVersion'() {
         given:
