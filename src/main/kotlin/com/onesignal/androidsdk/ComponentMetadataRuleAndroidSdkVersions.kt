@@ -3,7 +3,6 @@ package com.onesignal.androidsdk
 import org.gradle.api.artifacts.CacheableRule
 import org.gradle.api.artifacts.ComponentMetadataContext
 import org.gradle.api.artifacts.ComponentMetadataRule
-import org.gradle.api.attributes.Attribute
 import org.gradle.api.attributes.Usage
 import org.gradle.api.model.ObjectFactory
 import javax.inject.Inject
@@ -11,15 +10,13 @@ import javax.inject.Inject
 /// KEEP, required to get all the Kotlin Gradle DSL features
 import org.gradle.kotlin.dsl.*
 
-val myAttributeCompileSdkVersion: Attribute<Integer> = Attribute.of("custom.compileSdkVersion", Integer::class.java)
-
 @CacheableRule
-abstract class ComponentMetadataRuleAndroidSdkVersions @Inject constructor(val compileSdkVersion: Int) : ComponentMetadataRule {
+abstract class ComponentMetadataRuleAndroidSdkVersions @Inject constructor() : ComponentMetadataRule {
     @get:Inject
     abstract val objects: ObjectFactory
 
     override fun execute(context: ComponentMetadataContext) {
-        println("HERE WorkRuntimeCapabilitiesRule version: " + context.details.id.version)
+        println("HERE2 WorkRuntimeCapabilitiesRule version: " + context.details.id.version)
         // TODO: This is a string compare, need to change to Version types
         if (context.details.id.version < "2.6.0") {
             println("  Skipping older version: ${context.details.id.version}")
@@ -29,20 +26,21 @@ abstract class ComponentMetadataRuleAndroidSdkVersions @Inject constructor(val c
         context.details.allVariants {
             println("  context.details.allVariants: $this")
             attributes {
-                attribute(myAttributeCompileSdkVersion, 31 as Integer)
+                attribute(COMPILE_SDK_VERSION_NAME_ATTRIBUTE, 31 as Integer)
             }
         }
-        // TODO: Why does using "releaseVariantReleaseApiPublication" as a base cause it to fail?
-        // NOTE: releaseVariantReleaseRuntimePublication is in 2.7.0, but is a different name in 2.4.0
-        context.details.addVariant("custom.compileSdkVersion_require_min_30") {
+        context.details.addVariant("compileSdkVersion_below_31") {
             withDependencies {
-                add("androidx.work:work-runtime:2.6.0")
+                add("androidx.work:work-runtime:2.6.0") {
+                    because("Because: Downgrade to support compileSdkVersion 30")
+                }
             }
 
             attributes {
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
-//                // TODO: Should remove instead of setting. Or if not possible to set 0 so it always uses this as a fallback
-                attribute(myAttributeCompileSdkVersion, 30 as Integer)
+                // The context.details.allVariants above, adds the attribute to every variant,
+                // we need to assign some default value so this doesn't happen. 0 here means it becomes a non factor
+                attribute(COMPILE_SDK_VERSION_NAME_ATTRIBUTE, 0 as Integer)
             }
         }
     }
