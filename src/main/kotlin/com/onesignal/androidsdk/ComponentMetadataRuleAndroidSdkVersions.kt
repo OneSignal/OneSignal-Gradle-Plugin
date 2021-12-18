@@ -2,6 +2,7 @@ package com.onesignal.androidsdk
 
 import org.gradle.api.artifacts.CacheableRule
 import org.gradle.api.artifacts.ComponentMetadataContext
+import org.gradle.api.artifacts.ComponentMetadataDetails
 import org.gradle.api.artifacts.ComponentMetadataRule
 import org.gradle.api.attributes.Usage
 import org.gradle.api.model.ObjectFactory
@@ -15,24 +16,39 @@ abstract class ComponentMetadataRuleAndroidSdkVersions @Inject constructor() : C
     @get:Inject
     abstract val objects: ObjectFactory
 
+    val versionToMinCompileSdkMap get() =
+        mapOf(
+            "2.7.0" to 31
+        )
+
+    private fun shouldApplyRule(version: String): Boolean {
+        return VersionComparator().lessThan(version, "2.7.0")
+    }
+
     override fun execute(context: ComponentMetadataContext) {
-        println("HERE2 WorkRuntimeCapabilitiesRule version: " + context.details.id.version)
-        // TODO: This is a string compare, need to change to Version types
-        if (context.details.id.version < "2.6.0") {
-            println("  Skipping older version: ${context.details.id.version}")
+        println("1ComponentMetadataRuleAndroidSdkVersions: ${context.details.id.version}")
+        if (!shouldApplyRule(context.details.id.version)) {
             return
         }
-        println("  context.details: " + context.details)
-        context.details.allVariants {
-            println("  context.details.allVariants: $this")
+        println("2ComponentMetadataRuleAndroidSdkVersions: ${context.details.id.version}")
+
+        applyMinCompileSdkVersion(context.details, 31)
+    }
+
+    private fun applyMinCompileSdkVersion(details: ComponentMetadataDetails, version: Int) {
+        details.allVariants {
             attributes {
-                attribute(COMPILE_SDK_VERSION_NAME_ATTRIBUTE, 31 as Integer)
+                attribute(COMPILE_SDK_VERSION_NAME_ATTRIBUTE, version as Integer)
             }
         }
-        context.details.addVariant("compileSdkVersion_below_31") {
+        provideDowngradeIfBelowCompileSdkVersion(details, version)
+    }
+
+    private fun provideDowngradeIfBelowCompileSdkVersion(details: ComponentMetadataDetails, version: Int) {
+        details.addVariant("compileSdkVersion_below_$version") {
             withDependencies {
                 add("androidx.work:work-runtime:2.6.0") {
-                    because("Because: Downgrade to support compileSdkVersion 30")
+                    because("Because: Downgrade to support compileSdkVersion ${version - 1}")
                 }
             }
 

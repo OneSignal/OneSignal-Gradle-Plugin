@@ -9,11 +9,11 @@ class AndroidSdkVersionProvider constructor(
     private val logger: Logger?,
 ) {
     private val appExtension: AppExtension? by lazy {
+        // TODO: Account for library project?
         project.extensions.findByType(AppExtension::class.java)
     }
 
     val compile: Int? by lazy {
-        // TODO: Account for library project?
         val localAppExtension = appExtension
         if (localAppExtension == null) {
             logger?.warn("AppExtension::class.java not found! '${project.name}' is not an Android project.")

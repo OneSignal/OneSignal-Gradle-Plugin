@@ -7,6 +7,7 @@ import org.gradle.api.Project
 import org.gradle.kotlin.dsl.*
 
 // Plugin's implementationClass, this is defined in the root build.gradle
+// TODO: Added check for Gradle 6.0.1+ (this is required since we use the API addVariant)
 class OneSignalPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {

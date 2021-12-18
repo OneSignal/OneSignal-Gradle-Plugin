@@ -264,7 +264,7 @@ class TestCustomGradleModuleMetadata extends Specification {
                     mavenCentral()
                 }
                 dependencies {
-                    classpath 'com.android.tools.build:gradle:4.2.1'
+                    classpath 'com.android.tools.build:gradle:3.0.0'
                 }
             }
             plugins {
@@ -351,7 +351,7 @@ class TestCustomGradleModuleMetadata extends Specification {
 //                .withArguments(['-q', 'app:dependencyInsight', '--dependency', 'json', '--configuration', 'debugCompileClasspath', '--info'])
                 .withArguments(['-q', ':app:dependencyInsight', '--dependency', 'work-runtime', '--configuration', 'debugCompileClasspath', '--info'])
                 .withPluginClasspath()
-                .withGradleVersion('7.3.1')
+                .withGradleVersion('6.0.1')
                 .build()
         println(result.output)
         result
@@ -382,7 +382,7 @@ class TestCustomGradleModuleMetadata extends Specification {
     def 'modify androidx variants to select correct version based on compileSdkVersion'() {
         given:
         final compileLines = """\
-            implementation 'androidx.work:work-runtime:[2.1.0, 2.7.99]'
+            implementation 'androidx.work:work-runtime:[2.1.0, 2.5.99]'
         """
         final props = [
             (PROJECT_PROPS): [
