@@ -1,6 +1,11 @@
-# OneSignal Gradle Plugin
+# :stop_sign: DEPRECATED - OneSignal Gradle Plugin - DEPRECATED :stop_sign:
 
 This Gradle plugin helps make the [OneSignal Android SDK](https://github.com/OneSignal/OneSignal-Android-SDK) compatible with your Android Studio / Gradle project. It automatically fixes and notifies you of required changes to make the OneSignal SDK compatible with your app.
+
+## Deprecated
+This repository has been deprecated and will no longer be maintained.  The OneSignal gradle plugin for Android was designed to (1) ensure the compileSdkVersion is 31 or higher and (2) ensure (mostly) firebase dependent libraries in use by the app & onesignal are compatible. The dependent library compatibility problem has been less of an issue, making the plugin less useful. However inclusion of the plugin itself can sometimes cause side-effect issues during build.  As a result, including the OneSignal Gradle plugin is no longer considered standard when configuring an app to use the OneSignal SDK.
+
+If you experience issues related to what this plugin was designed to solve, please open a question in the [onesignal-android-sdk repository](https://github.com/OneSignal/OneSignal-Android-SDK/issues/new?assignees=&labels=question&template=ask-question.yml&title=%5Bquestion%5D%3A+).
 
 ## Setup
 1. In your root `build.gradle`, under `buildscript`, add the following 2 new lines to your existing `repositories` and `dependencies` sections
